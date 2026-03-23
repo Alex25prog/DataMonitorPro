@@ -4,7 +4,7 @@ import QtQuick.Layouts
 
 ApplicationWindow {
     id: root
-    width: 1300
+    width: 1400
     height: 800
     visible: true
     title: qsTr("DataMonitor Pro")
@@ -109,6 +109,8 @@ ApplicationWindow {
                 border.color: "#3d3d3d"
                 
                 ListView {
+                    id:tableView
+                    width: parent.width
                     anchors.fill: parent
                     anchors.margins: 5
                     model: controller.dataModel
@@ -122,29 +124,31 @@ ApplicationWindow {
                         Row {
                             anchors.fill: parent
                             anchors.margins: 5
+                            spacing: 10
                             
                             Rectangle { width: 180; height: 30; color: "#3d3d3d"; radius: 3; Text { text: "Timestamp"; anchors.centerIn: parent; color: "white" } }
                             Rectangle { width: 100; height: 30; color: "#3d3d3d"; radius: 3; Text { text: "Type"; anchors.centerIn: parent; color: "white" } }
                             Rectangle { width: 100; height: 30; color: "#3d3d3d"; radius: 3; Text { text: "Value"; anchors.centerIn: parent; color: "white" } }
                             Rectangle { width: 80; height: 30; color: "#3d3d3d"; radius: 3; Text { text: "Unit"; anchors.centerIn: parent; color: "white" } }
-                            Rectangle { width: 300; height: 30; color: "#3d3d3d"; radius: 3; Text { text: "Details"; anchors.centerIn: parent; color: "white" } }
+                            Rectangle { width: 700; height: 30; color: "#3d3d3d"; radius: 3; Text { text: "Details"; anchors.centerIn: parent; color: "white" } }
                         }
                     }
                     
                     delegate: Rectangle {
-                        width: tableView.width
+
                         height: 35
                         color: index % 2 === 0 ? "#252525" : "#2a2a2a"
                         
-                        RowLayout {
+                        Row {
                             anchors.fill: parent
                             anchors.margins: 5
+                            spacing: 10//строка для отступа между колонками
                             
-                            Text { width: 160; text: model.timestamp; color: "white"; elide: Text.ElideRight }
-                            Text { width: 100; text: model.type; color: "white" }
-                            Text { width: 80; text: model.value.toFixed(2); color: "#4caf50" }
-                            Text { width: 70; text: model.unit; color: "white" }
-                            Text { width: 300; text: model.string; color: "#808080"; elide: Text.ElideRight }
+                            Text { width: 180; text: model.timestamp ||""; color: "white"; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter }
+                            Text { width: 100; text: model.type ||""; color: "white"; horizontalAlignment: Text.AlignHCenter }
+                            Text { width: 100; text: model.value ? model.value.toFixed(2):"0.00"; color: "#4caf50"; horizontalAlignment: Text.AlignHCenter }
+                            Text { width: 80; text: model.unit ||""; color: "white";horizontalAlignment: Text.AlignHCenter }
+                            Text { width: 700; text: model.string ||""; color: "#808080"; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter }
                         }
                     }
                 }
