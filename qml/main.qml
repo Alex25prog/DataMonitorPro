@@ -4,7 +4,7 @@ import QtQuick.Layouts
 
 ApplicationWindow {
     id: root
-    width: 1200
+    width: 1300
     height: 800
     visible: true
     title: qsTr("DataMonitor Pro")
@@ -115,23 +115,24 @@ ApplicationWindow {
                     clip: true
                     
                     header: Rectangle {
+                        width: tableView.width
                         height: 40
                         color: "#2d2d2d"
                         
-                        RowLayout {
+                        Row {
                             anchors.fill: parent
                             anchors.margins: 5
                             
-                            Rectangle { width: 150; height: 30; color: "#3d3d3d"; radius: 3; Text { text: "Timestamp"; anchors.centerIn: parent; color: "white" } }
+                            Rectangle { width: 180; height: 30; color: "#3d3d3d"; radius: 3; Text { text: "Timestamp"; anchors.centerIn: parent; color: "white" } }
                             Rectangle { width: 100; height: 30; color: "#3d3d3d"; radius: 3; Text { text: "Type"; anchors.centerIn: parent; color: "white" } }
-                            Rectangle { width: 80; height: 30; color: "#3d3d3d"; radius: 3; Text { text: "Value"; anchors.centerIn: parent; color: "white" } }
-                            Rectangle { width: 60; height: 30; color: "#3d3d3d"; radius: 3; Text { text: "Unit"; anchors.centerIn: parent; color: "white" } }
-                            Rectangle { Layout.fillWidth: true; height: 30; color: "#3d3d3d"; radius: 3; Text { text: "String"; anchors.centerIn: parent; color: "white" } }
+                            Rectangle { width: 100; height: 30; color: "#3d3d3d"; radius: 3; Text { text: "Value"; anchors.centerIn: parent; color: "white" } }
+                            Rectangle { width: 80; height: 30; color: "#3d3d3d"; radius: 3; Text { text: "Unit"; anchors.centerIn: parent; color: "white" } }
+                            Rectangle { width: 300; height: 30; color: "#3d3d3d"; radius: 3; Text { text: "Details"; anchors.centerIn: parent; color: "white" } }
                         }
                     }
                     
                     delegate: Rectangle {
-                        width: parent.width
+                        width: tableView.width
                         height: 35
                         color: index % 2 === 0 ? "#252525" : "#2a2a2a"
                         
@@ -139,11 +140,11 @@ ApplicationWindow {
                             anchors.fill: parent
                             anchors.margins: 5
                             
-                            Text { width: 150; text: model.timestamp; color: "white"; elide: Text.ElideRight }
+                            Text { width: 160; text: model.timestamp; color: "white"; elide: Text.ElideRight }
                             Text { width: 100; text: model.type; color: "white" }
                             Text { width: 80; text: model.value.toFixed(2); color: "#4caf50" }
-                            Text { width: 60; text: model.unit; color: "white" }
-                            Text { Layout.fillWidth: true; text: model.string; color: "#808080"; elide: Text.ElideRight }
+                            Text { width: 70; text: model.unit; color: "white" }
+                            Text { width: 300; text: model.string; color: "#808080"; elide: Text.ElideRight }
                         }
                     }
                 }
@@ -161,11 +162,11 @@ ApplicationWindow {
                 anchors.fill: parent
                 anchors.margins: 10
                 
-                Label { text: "📊 Total points: " + controller.dataModel.count }
+                Label { text: "Total points: " + controller.dataModel.count }
                 Label { text: "|" }
-                Label { text: "🟢 Server: " + (controller.isServerRunning ? "Active" : "Inactive") }
+                Label { text: "Server: " + (controller.isServerRunning ? "Active" : "Inactive") }
                 Label { text: "|" }
-                Label { text: "💾 Database: SQLite" }
+                Label { text: "Database: SQLite" }
             }
         }
     }
