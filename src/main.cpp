@@ -12,6 +12,10 @@ int main(int argc, char *argv[])
     // Создаем контроллер
     MainController controller(&engine);
     
+
+    //регистрируем контроллер в QML под именем "controller"
+    engine.rootContext()->setContextProperty("controller", &controller);
+
     // Загружаем QML — путь должен совпадать с URI
     const QUrl url("qrc:/DataMonitorPro/qml/main.qml");
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,

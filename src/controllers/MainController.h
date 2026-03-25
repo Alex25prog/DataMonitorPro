@@ -3,8 +3,9 @@
 
 #include <QObject>
 #include <QQmlApplicationEngine>
+#include <QQmlContext>
 #include "../models/DataModel.h"
-#include "../network/DataServer.h"
+#include "../network/WebSocketServer.h"
 #include "../database/DatabaseManager.h"
 #include "../core/DataProcessor.h"
 
@@ -27,15 +28,17 @@ public:
     
 signals:
     void serverRunningChanged();
+    void chartDataReceived(qreal timestamp, qreal value);
 
 private slots:
     void onDataReceived(const QString& data);
     void onDataProcessed(const DataPoint& point);
+    void updateChart(const DataPoint& point);
 
 private:
     QQmlApplicationEngine* m_engine;
     DataModel* m_dataModel;
-    DataServer* m_server;
+    WebSocketServer* m_server;
     DatabaseManager* m_database;
     DataProcessor* m_processor;
     bool m_serverRunning = false;

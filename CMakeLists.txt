@@ -7,16 +7,24 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Quick QuickControls2 Network Sql)
+find_package(Qt6 REQUIRED COMPONENTS Core Quick QuickControls2 Network Sql WebSockets)
 
 qt_add_executable(DataMonitorPro
     src/main.cpp
     src/core/DataPoint.cpp
+    src/core/DataPoint.h
     src/core/DataProcessor.cpp
+    src/core/DataProcessor.h
+    src/network/WebSocketServer.cpp
+    src/network/WebSocketServer.h
     src/models/DataModel.cpp
-    src/network/DataServer.cpp
+    src/models/DataModel.h
+
+
     src/database/DatabaseManager.cpp
+    src/database/DatabaseManager.h
     src/controllers/MainController.cpp
+    src/controllers/MainController.h
 )
 
 target_link_libraries(DataMonitorPro
@@ -26,6 +34,8 @@ target_link_libraries(DataMonitorPro
     Qt6::QuickControls2
     Qt6::Network
     Qt6::Sql
+    Qt6::WebSockets
+
 )
 
 qt_add_qml_module(DataMonitorPro

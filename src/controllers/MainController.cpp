@@ -8,15 +8,16 @@ MainController::MainController(QQmlApplicationEngine* engine, QObject *parent)
     : QObject(parent)
     , m_engine(engine)
     , m_dataModel(new DataModel(this))
-    , m_server(new DataServer(this))
+    , m_server(new WebSocketServer(this))
     , m_database(new DatabaseManager(this))
     , m_processor(new DataProcessor(this))
 {
     // Подключаем сигналы
-    connect(m_server, &DataServer::dataReceived, this, &MainController::onDataReceived);
+    connect(m_server, &WebSocketServer::dataReceived, this, &MainController::onDataReceived);
     connect(m_processor, &DataProcessor::dataProcessed, this, &MainController::onDataProcessed);
     connect(m_processor, &DataProcessor::dataProcessed, m_dataModel, &DataModel::addDataPoint);
-    
+
+
     // Инициализируем базу данных
     if (!m_database->initialize()) {
         qDebug() << "Failed to initialize database";
@@ -83,7 +84,7 @@ DataPoint MainController::parseData(const QString& data)
         qDebug() << "Invalid JSON";
         return DataPoint();
     }
-    
+
     QJsonObject obj = doc.object();
     
     QDateTime timestamp = QDateTime::currentDateTime();
@@ -96,4 +97,8 @@ DataPoint MainController::parseData(const QString& data)
     QString unit = obj["unit"].toString();
     
     return DataPoint(timestamp, type, value, unit);
+}
+void MainController::updateChart(const DataPoint& point)
+{
+    emit chartDataReceived(point.timestamp().toMSecsSinceEpoch(), point.value());
 }
