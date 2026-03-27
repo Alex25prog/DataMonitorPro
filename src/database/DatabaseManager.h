@@ -4,6 +4,8 @@
 #include <QObject>
 #include <QSqlDatabase>
 #include "../core/DataPoint.h"
+#include <QList>
+#include <QDateTime>
 
 class DatabaseManager : public QObject
 {
@@ -13,7 +15,14 @@ public:
     explicit DatabaseManager(QObject *parent = nullptr);
     ~DatabaseManager();
     
-    bool initialize(const QString& connectionName = "datamonitor");
+    bool connectToPostgreSQL(const QString& host = "localhost",
+                             int potr = 5432,
+                             const QString& dbName = "datamonitor",
+                             const QString& user = "postgres",
+                             const QString& password = ""  );
+
+
+
     bool saveDataPoint(const DataPoint& point);
     QList<DataPoint> loadDataPoints(const QDateTime& from, const QDateTime& to);
     

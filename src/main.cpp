@@ -2,11 +2,13 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include "controllers/MainController.h"
-
+#include <QSqlDatabase>
+#include <QDebug>
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
-    
+    qDebug() << "Доступные SQL драйверы:" << QSqlDatabase::drivers();
+
     QQmlApplicationEngine engine;
     
     // Создаем контроллер

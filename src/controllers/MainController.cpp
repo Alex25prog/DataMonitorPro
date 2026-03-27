@@ -19,13 +19,15 @@ MainController::MainController(QQmlApplicationEngine* engine, QObject *parent)
 
 
     // Инициализируем базу данных
-    if (!m_database->initialize()) {
-        qDebug() << "Failed to initialize database";
+    if (!m_database->connectToPostgreSQL("localhost", 5432, "datamonitor", "postgres", "12345")) {
+        qDebug() << "Failed to connect to PostgreSQL";
+    }else {
+        qDebug() << "PostgreSQL ready";
     }
-    
+
     // Регистрируем модель для QML
     qmlRegisterUncreatableType<DataModel>("com.datamonitor", 1, 0, "DataModel", "Cannot create DataModel in QML");
-    
+
     // Делаем контроллер доступным из QML
     m_engine->rootContext()->setContextProperty("controller", this);
 }
@@ -58,7 +60,9 @@ void MainController::onDataReceived(const QString& data)
     DataPoint point = parseData(data);
     if (point.isValid()) {
         m_processor->processDataPoint(point);
-        m_database->saveDataPoint(point);
+        if (!m_database->saveDataPoint(point)){
+            qDebug() << "Failed to save point to database";
+        }
     }
 }
 
@@ -86,16 +90,16 @@ DataPoint MainController::parseData(const QString& data)
     }
 
     QJsonObject obj = doc.object();
-    
+
     QDateTime timestamp = QDateTime::currentDateTime();
     if (obj.contains("timestamp")) {
         timestamp = QDateTime::fromString(obj["timestamp"].toString(), Qt::ISODate);
     }
-    
+
     QString type = obj["type"].toString();
     double value = obj["value"].toDouble();
     QString unit = obj["unit"].toString();
-    
+
     return DataPoint(timestamp, type, value, unit);
 }
 void MainController::updateChart(const DataPoint& point)
