@@ -17,10 +17,10 @@ qt_add_executable(DataMonitorPro
     src/core/DataProcessor.h
     src/network/WebSocketServer.cpp
     src/network/WebSocketServer.h
+    src/network/WeatherFetcher.cpp
+    src/network/WeatherFetcher.h
     src/models/DataModel.cpp
     src/models/DataModel.h
-
-
     src/database/DatabaseManager.cpp
     src/database/DatabaseManager.h
     src/controllers/MainController.cpp
@@ -43,6 +43,8 @@ qt_add_qml_module(DataMonitorPro
     VERSION 1.0
     QML_FILES
         qml/main.qml
+        SOURCES src/network/WeatherFetcher.h
+        SOURCES src/network/WeatherFetcher.cpp
 )
 
 target_compile_definitions(DataMonitorPro

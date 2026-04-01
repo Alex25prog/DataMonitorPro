@@ -56,7 +56,7 @@ ApplicationWindow {
         Rectangle {
             Layout.fillWidth: true
             height: 50
-            color: "#2d2d2d"
+            color: "#808080"
             radius: 5
 
             RowLayout {
@@ -64,8 +64,10 @@ ApplicationWindow {
                 anchors.margins: 10
                 spacing: 10
 
-                Label { text: "Filter by type:" }
+                Label { text: "Filter by type:"
 
+                        color: "#B22222"
+                }
                 ComboBox {
                     id: typeFilter
                     model: ["All", "temperature", "pressure", "humidity"]
@@ -158,18 +160,21 @@ ApplicationWindow {
         Rectangle {
             Layout.fillWidth: true
             height: 40
-            color: "#2d2d2d"
+            color: "#808080"
             radius: 3
 
             RowLayout {
                 anchors.fill: parent
                 anchors.margins: 10
 
-                Label { text: " Total points: " + controller.dataModel.count }
+                Label { text: " Total points: " + controller.dataModel.count
+                color: "#B22222" }
                 Label { text: "|" }
-                Label { text: "Server: " + (controller.isServerRunning ? "Active" : "Inactive") }
+                Label { text: "Server: " + (controller.isServerRunning ? "Active" : "Inactive")
+                color: "#B22222" }
                 Label { text: "|" }
-                Label { text: " Database: SQLite" }
+                Label { text: " Database: PostgreSQL"
+                color: "#B22222" }
             }
         }
     }

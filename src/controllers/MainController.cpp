@@ -24,6 +24,18 @@ MainController::MainController(QQmlApplicationEngine* engine, QObject *parent)
     }else {
         qDebug() << "PostgreSQL ready";
     }
+    //WeatherFetcher
+    m_weatherFetcher = new WeatherFetcher(this);
+    m_weatherFetcher->setApiKey("15dcc84205e66754254850365e35c659"); //API key
+
+    connect(m_weatherFetcher, &WeatherFetcher::weatherDataReceived,
+            this, &MainController::onWeatherDataReceived);
+
+    connect(m_weatherFetcher, &WeatherFetcher::errorOccurred,
+            [](const QString& error) { qDebug() << "Weather error:" << error;});
+  //запускаем получение погоды каждые 10 минут (600 секунд)
+
+    m_weatherFetcher->startFetching(600);
 
     // Регистрируем модель для QML
     qmlRegisterUncreatableType<DataModel>("com.datamonitor", 1, 0, "DataModel", "Cannot create DataModel in QML");
@@ -105,4 +117,12 @@ DataPoint MainController::parseData(const QString& data)
 void MainController::updateChart(const DataPoint& point)
 {
     emit chartDataReceived(point.timestamp().toMSecsSinceEpoch(), point.value());
+}
+
+void MainController::onWeatherDataReceived(const QString& type, double value, const QString& unit)
+{
+    DataPoint point(QDateTime::currentDateTime(), type, value, unit);
+    m_processor->processDataPoint(point);
+    m_database->saveDataPoint(point);
+    qDebug() << "Weather saved:" << type << value << unit;
 }
