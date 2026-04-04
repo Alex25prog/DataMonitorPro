@@ -16,10 +16,10 @@ bool WebSocketServer::startServer(quint16 port)
 {
     if (listen(QHostAddress::Any, port)) {
         m_isRunning = true;
-        qDebug() << "✅ WebSocket server started on port" << port;
+        qDebug() << "WebSocket server started on port" << port;
         return true;
     }
-    qDebug() << "❌ Failed to start WebSocket server on port" << port;
+    qDebug() << "Failed to start WebSocket server on port" << port;
     return false;
 }
 
@@ -43,7 +43,7 @@ void WebSocketServer::onNewConnection()
     if (!socket) return;
 
     m_clients.append(socket);
-    qDebug() << "📡 Client connected from" << socket->peerAddress().toString();
+    qDebug() << "Client connected from" << socket->peerAddress().toString();
     emit clientConnected();
 
     connect(socket, &QWebSocket::textMessageReceived,
@@ -54,7 +54,7 @@ void WebSocketServer::onNewConnection()
 
 void WebSocketServer::onTextMessageReceived(const QString& message)
 {
-    qDebug() << "📨 Received:" << message;
+    qDebug() << "Received:" << message;
     emit dataReceived(message);
 }
 
@@ -64,7 +64,7 @@ void WebSocketServer::onSocketDisconnected()
     if (socket) {
         m_clients.removeAll(socket);
         socket->deleteLater();
-        qDebug() << "📡 Client disconnected";
+        qDebug() << "Client disconnected";
         emit clientDisconnected();
     }
 }

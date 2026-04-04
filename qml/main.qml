@@ -41,6 +41,15 @@ ApplicationWindow {
                     controller.loadHistory(from, new Date())
                 }
             }
+            Button{
+                text: "Export CSV"
+                onClicked: controller.exportToCSV()
+            }
+
+            Button{
+                text: "Export PDF"
+                onClicked: controller.exportToPDF()
+            }
 
             Rectangle {
                 Layout.fillWidth: true

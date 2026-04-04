@@ -3,19 +3,30 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QDebug>
+#include <QStandardPaths>
+#include <QDateTime>
 
-MainController::MainController(QQmlApplicationEngine* engine, QObject *parent)
+     MainController::MainController(QQmlApplicationEngine* engine, QObject *parent)
     : QObject(parent)
     , m_engine(engine)
     , m_dataModel(new DataModel(this))
     , m_server(new WebSocketServer(this))
     , m_database(new DatabaseManager(this))
     , m_processor(new DataProcessor(this))
+    , m_exporter (new ReportExporter(this))
 {
     // Подключаем сигналы
     connect(m_server, &WebSocketServer::dataReceived, this, &MainController::onDataReceived);
     connect(m_processor, &DataProcessor::dataProcessed, this, &MainController::onDataProcessed);
     connect(m_processor, &DataProcessor::dataProcessed, m_dataModel, &DataModel::addDataPoint);
+    connect(m_exporter, &ReportExporter::exportFinished,
+            [](bool success, const QString& filePath, const QString& error){
+       if (success) {
+           qDebug() << "Export successful:" << filePath;
+       } else {
+           qDebug() << "Export failed:" << error;
+       }
+    });
 
 
     // Инициализируем базу данных
@@ -125,4 +136,35 @@ void MainController::onWeatherDataReceived(const QString& type, double value, co
     m_processor->processDataPoint(point);
     m_database->saveDataPoint(point);
     qDebug() << "Weather saved:" << type << value << unit;
+}
+void MainController::exportToCSV()//Метод экспорта в CSV
+{
+    //Формируем имя файла с текущей датой и временем
+    QString fileName = QString("DataMonitor_Export_%1.csv")
+                           .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd_hh-mm-ss"));
+
+    //Путь к папке Документы
+    QString filePath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)
+                       + "/" + fileName;
+
+
+    //Вызываем экспорт через ReportExporter
+    m_exporter->exportCurrentData(m_dataModel, filePath, "csv");
+
+}
+
+void MainController::exportToPDF()
+{
+
+    //Формируем имя файла с текущей датой и временем
+    QString fileName = QString("DataMonitor_Report_%1.pdf")
+                           .arg(QDateTime::currentDateTime().toString("yyyy-MM-dd_hh-mm-ss"));
+
+
+    //Путь к папке документы
+    QString filePath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)
+                       + "/" + fileName;
+
+    //Вызываем экспорт через ReportExporter
+    m_exporter->exportCurrentData(m_dataModel, filePath, "pdf");
 }

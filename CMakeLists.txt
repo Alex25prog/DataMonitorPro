@@ -25,6 +25,8 @@ qt_add_executable(DataMonitorPro
     src/database/DatabaseManager.h
     src/controllers/MainController.cpp
     src/controllers/MainController.h
+    src/export/ReportExporter.h
+    src/export/ReportExporter.cpp
 )
 
 target_link_libraries(DataMonitorPro

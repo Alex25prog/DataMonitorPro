@@ -10,6 +10,7 @@
 #include "../database/DatabaseManager.h" //Менеджер базы данных (PostgreSQL)
 #include "../core/DataProcessor.h" // Обработчик данных (валидация, статистика)
 #include "../network/WeatherFetcher.h" //Получатель погоды из OpenWeatherMap API
+#include "../export/ReportExporter.h"
 
 /**
  Главный контроллер приложения
@@ -38,7 +39,8 @@ public:
     Q_INVOKABLE bool startServer(quint16 port = 8080); //Запускает WebSocket-сервер
     Q_INVOKABLE void stopServer(); //Останавливает WebSocket-сервер
     Q_INVOKABLE void loadHistory(const QDateTime& from, const QDateTime& to); //Загружает историю данных за указанный период
-    
+    Q_INVOKABLE void exportToCSV();//методы экспорта
+    Q_INVOKABLE void exportToPDF();//методы экспорта
 signals:
     void serverRunningChanged(); //Сигнал об изменении статуса сервера
     void chartDataReceived(qreal timestamp, qreal value); //Сигнал для передачи данных в график
@@ -57,7 +59,7 @@ private:
     DataProcessor* m_processor;//Обработчик данных
     bool m_serverRunning = false;//Флаг статуса сервера
     WeatherFetcher* m_weatherFetcher;//Получатель погоды
-    
+    ReportExporter* m_exporter;
     DataPoint parseData(const QString& data);//Парсит JSON-строку в объект DataPoint
 };
 
