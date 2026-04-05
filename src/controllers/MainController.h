@@ -35,15 +35,20 @@ public:
     
     DataModel* dataModel() const { return m_dataModel; } //Возвращает модель данных для QML
     bool isServerRunning() const { return m_serverRunning; } //Возвращает статус сервера (запущен/остановлен)
+    bool isWeatherRunning() const { return m_weatherRunning; }
     
     Q_INVOKABLE bool startServer(quint16 port = 8080); //Запускает WebSocket-сервер
     Q_INVOKABLE void stopServer(); //Останавливает WebSocket-сервер
     Q_INVOKABLE void loadHistory(const QDateTime& from, const QDateTime& to); //Загружает историю данных за указанный период
     Q_INVOKABLE void exportToCSV();//методы экспорта
     Q_INVOKABLE void exportToPDF();//методы экспорта
+    Q_INVOKABLE void startWeather();
+    Q_INVOKABLE void stopWeather();
+    Q_PROPERTY(bool isWeatherRunning READ isWeatherRunning NOTIFY weatherRunningChanged)
 signals:
     void serverRunningChanged(); //Сигнал об изменении статуса сервера
     void chartDataReceived(qreal timestamp, qreal value); //Сигнал для передачи данных в график
+    void weatherRunningChanged();
 
 private slots:
     void onDataReceived(const QString& data); //Обработчик получения данных от WebSocket-сервера
@@ -61,6 +66,8 @@ private:
     WeatherFetcher* m_weatherFetcher;//Получатель погоды
     ReportExporter* m_exporter;
     DataPoint parseData(const QString& data);//Парсит JSON-строку в объект DataPoint
+    bool m_weatherRunning = false;
+
 };
 
 #endif // MAINCONTROLLER_H

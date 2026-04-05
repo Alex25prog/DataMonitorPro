@@ -7,7 +7,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Quick QuickControls2 Network Sql WebSockets)
+find_package(Qt6 REQUIRED COMPONENTS Core Quick QuickControls2 Network Sql WebSockets Pdf)
 
 qt_add_executable(DataMonitorPro
     src/main.cpp
@@ -37,6 +37,7 @@ target_link_libraries(DataMonitorPro
     Qt6::Network
     Qt6::Sql
     Qt6::WebSockets
+    Qt6::Pdf
 
 )
 
@@ -45,8 +46,7 @@ qt_add_qml_module(DataMonitorPro
     VERSION 1.0
     QML_FILES
         qml/main.qml
-        SOURCES src/network/WeatherFetcher.h
-        SOURCES src/network/WeatherFetcher.cpp
+
 )
 
 target_compile_definitions(DataMonitorPro

@@ -46,7 +46,7 @@
             [](const QString& error) { qDebug() << "Weather error:" << error;});
   //запускаем получение погоды каждые 10 минут (600 секунд)
 
-    m_weatherFetcher->startFetching(600);
+   // m_weatherFetcher->startFetching(600);(Далее используются кнопки start/stop)
 
     // Регистрируем модель для QML
     qmlRegisterUncreatableType<DataModel>("com.datamonitor", 1, 0, "DataModel", "Cannot create DataModel in QML");
@@ -167,4 +167,24 @@ void MainController::exportToPDF()
 
     //Вызываем экспорт через ReportExporter
     m_exporter->exportCurrentData(m_dataModel, filePath, "pdf");
+}
+
+void MainController::startWeather()//Метод старта
+{
+    if (m_weatherFetcher){
+        m_weatherFetcher->startFetching(600);
+        m_weatherRunning = true;
+        emit weatherRunningChanged();//Отсылаем сигнал в QML для изменения кнопки
+        qDebug() << "Weather monitoring started";
+    }
+}
+
+void MainController::stopWeather()//Метод стоп
+{
+    if (m_weatherFetcher){
+        m_weatherFetcher->stopFetching();
+        m_weatherRunning = false;
+        emit weatherRunningChanged();//Отсылаем сигнал в QML для изменения кнопки
+        qDebug() << "Weather monitoring stopped";
+    }
 }

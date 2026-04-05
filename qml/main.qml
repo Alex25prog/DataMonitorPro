@@ -51,6 +51,18 @@ ApplicationWindow {
                 onClicked: controller.exportToPDF()
             }
 
+            Button{
+                text: controller.isWeatherRunning ? "Stop Weather" : "Start Weather"
+                onClicked: {
+                    if (controller.isWeatherRunning){
+                        controller.stopWeather()
+
+                    }else {
+                        controller.startWeather()
+                    }
+                }
+            }
+
             Rectangle {
                 Layout.fillWidth: true
             }
@@ -184,6 +196,11 @@ ApplicationWindow {
                 Label { text: "|" }
                 Label { text: " Database: PostgreSQL"
                 color: "#B22222" }
+                Label { text: "|"}
+                Label {
+                    text: "Weather: " + (controller.isWeatherRunning ? "Active" : "Inactive")
+                    color: controller.isWeatherRunning ? "#4caf50" : "#f44336"
+                }
             }
         }
     }
