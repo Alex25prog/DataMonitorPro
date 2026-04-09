@@ -47,7 +47,7 @@ public:
     Q_PROPERTY(bool isWeatherRunning READ isWeatherRunning NOTIFY weatherRunningChanged)
 signals:
     void serverRunningChanged(); //Сигнал об изменении статуса сервера
-    void chartDataReceived(qreal timestamp, qreal value); //Сигнал для передачи данных в график
+    void chartDataReceived(qreal timestamp, qreal value, QString type); //Сигнал для передачи данных в график
     void weatherRunningChanged();
 
 private slots:

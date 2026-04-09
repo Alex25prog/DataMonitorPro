@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtCharts
+import DataMonitorPro 1.0
 
 ApplicationWindow {
     id: root
@@ -9,16 +10,35 @@ ApplicationWindow {
     height: 800
     visible: true
     title: qsTr("DataMonitor Pro")
+    background: Rectangle { color: "#1e1e1e" }//Задание принудительного цвета
 
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 10
         spacing: 10
 
+
         // Верхняя панель с кнопками
         RowLayout {
+            // Start/Stop Server кнопка
             Button {
+                id: serverButton
                 text: controller.isServerRunning ? "Stop Server" : "Start Server"
+
+                background:  Rectangle {
+                    color: controller.isServerRunning ? "#2e7d32" : "#1565c0"
+                    radius: 15
+                    opacity: parent.pressed ? 0.7 : 1.0
+                }
+
+                contentItem: Text {
+                    text: serverButton.text
+                    color: "white"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignHCenter
+                    font.bold: true
+                }
+
                 onClicked: {
                     if (controller.isServerRunning) {
                         controller.stopServer()
@@ -27,32 +47,115 @@ ApplicationWindow {
                     }
                 }
             }
+            //Clear Data кнопка
 
             Button {
                 text: "Clear Data"
+                background: Rectangle {
+                    color: "#e8e9ef"
+                    radius: 8
+                    opacity: parent.pressed ? 0.7 : 1.0
+                }
+                contentItem: Text {
+                    text: "Clear Data"
+                    color: "black"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    font.bold: true
+                }
+
                 onClicked: controller.dataModel.clear()
             }
+            //Load History кнопка
 
             Button {
                 text: "Load History (Last 24h)"
+                background: Rectangle {
+                    color: "#e8e9ef"//grey
+                    radius: 8
+                    opacity: parent.pressed ? 0.7 : 1.0
+                }
+                contentItem: Text {
+                    text: "Load History (Last 24h)"
+                    color: "black"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignHCenter
+                    font.bold: true
+                }
+
                 onClicked: {
                     var from = new Date()
                     from.setHours(from.getHours() - 24)
                     controller.loadHistory(from, new Date())
                 }
             }
+            //Кнопка Export
             Button{
                 text: "Export CSV"
+                background: Rectangle {
+                    color: "#e8e9ef"//grey
+                    radius: 8
+                    opacity: parent.pressed ? 0.7 : 1.0
+
+                }
+                contentItem: Text {
+                    text: "Export CSV"
+                    color: "black"
+                    font.bold: true
+                }
+
                 onClicked: controller.exportToCSV()
             }
+            //Кнопка Export в PDF
 
             Button{
                 text: "Export PDF"
+                background: Rectangle {
+                    color: "#e8e9ef" //grey
+                    radius: 8
+                    opacity: parent.pressed ? 0.7 : 1.0
+
+                }
+                contentItem: Text {
+
+                    text: "Export PDF"
+                    color: "black"
+                    font.bold: true
+                }
+
                 onClicked: controller.exportToPDF()
-            }
+            }//Кнопка парсинга погоды
 
             Button{
+                id: weatherButton
                 text: controller.isWeatherRunning ? "Stop Weather" : "Start Weather"
+
+                //Стиль кнопки "Прямоугольник"
+                background: Rectangle {
+                    color: controller.isWeatherRunning ? "#2e7d32" : "#c62828" //темно-зеленый/темно-красный
+                    radius: 15//В пикселях
+                    border.width: 1//толщина контура
+                    border.color: controller.isWeatherRunning ? "#4caf50" : "#ef5350" //Зеленый/красный(цвет по контуру)
+                    opacity: parent.pressed ? 0.7 : 1.0   /**Эффект нажатия. 1.0 = 100%
+                                                             Непрозрачности(кнопка не нажата)
+                                                             0.7 = 70% Непрозрачность(кнопка нажата)
+                                                          */
+
+                     //Анимация при наведении
+                    Behavior on color {
+
+                        ColorAnimation { duration: 150 }
+                        }
+                    }
+                contentItem: Text {
+                    text: weatherButton.text
+                    color: "black"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    font.bold: true
+                    font.pixelSize: 12
+                }
+
                 onClicked: {
                     if (controller.isWeatherRunning){
                         controller.stopWeather()
@@ -63,10 +166,14 @@ ApplicationWindow {
                 }
             }
 
-            Rectangle {
+            /**Rectangle {
                 Layout.fillWidth: true
-            }
+                height: 50
+                color: "#2d2d2d" //темно-серый фон
+                radius: 5
 
+            }
+            */
             Label {
                 text: controller.isServerRunning ? "● Server Running" : "○ Server Stopped"
                 color: controller.isServerRunning ? "#4caf50" : "#f44336"
@@ -109,20 +216,26 @@ ApplicationWindow {
             Layout.fillHeight: true
             orientation: Qt.Vertical
 
-            // График (заглушка, без QtCharts)
-            Rectangle {
+            // График
+            GraphWidget {
+                id: graph
                 SplitView.preferredHeight: 300
-                color: "#1e1e1e"
-                border.color: "#3d3d3d"
-
-                Label {
-                 anchors.centerIn: parent
-                 text: "Chart View (Coming Soon)"
-                 color: "#808080"
-
+                Layout.fillWidth: true
+                //Временный фон для проверки
+                Rectangle {
+                    anchors.fill: parent
+                    color: "red"
+                    z: -1
                 }
 
+                //Забираем стгнал из С++
+                Connections {
+                    target: controller
+                    function onChartDataReceived(timestamp, value, type){
+                        graph.lastPoint = {"timestamp": timestamp, "value": value, "type": type}
+                }
             }
+        }
 
             // Таблица данных
             Rectangle {
@@ -156,6 +269,7 @@ ApplicationWindow {
                         }
                     }
 
+
                     delegate: Rectangle {
                         width: tableView.width
                         height: 35
@@ -181,7 +295,7 @@ ApplicationWindow {
         Rectangle {
             Layout.fillWidth: true
             height: 40
-            color: "#808080"
+            color: "#2d2d2d"
             radius: 3
 
             RowLayout {
@@ -199,9 +313,9 @@ ApplicationWindow {
                 Label { text: "|"}
                 Label {
                     text: "Weather: " + (controller.isWeatherRunning ? "Active" : "Inactive")
-                    color: controller.isWeatherRunning ? "#4caf50" : "#f44336"
+                    color: controller.isWeatherRunning ? "#4caf50" : "#f44336"}
                 }
             }
         }
     }
-}
+

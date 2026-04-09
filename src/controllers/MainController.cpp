@@ -127,7 +127,7 @@ DataPoint MainController::parseData(const QString& data)
 }
 void MainController::updateChart(const DataPoint& point)
 {
-    emit chartDataReceived(point.timestamp().toMSecsSinceEpoch(), point.value());
+    emit chartDataReceived(point.timestamp().toMSecsSinceEpoch(), point.value(), point.type());
 }
 
 void MainController::onWeatherDataReceived(const QString& type, double value, const QString& unit)
@@ -135,6 +135,7 @@ void MainController::onWeatherDataReceived(const QString& type, double value, co
     DataPoint point(QDateTime::currentDateTime(), type, value, unit);
     m_processor->processDataPoint(point);
     m_database->saveDataPoint(point);
+    updateChart(point); //Для обновления графика
     qDebug() << "Weather saved:" << type << value << unit;
 }
 void MainController::exportToCSV()//Метод экспорта в CSV
