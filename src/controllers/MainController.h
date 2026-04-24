@@ -12,6 +12,7 @@
 #include "../network/WeatherFetcher.h" //Получатель погоды из OpenWeatherMap API
 #include "../export/ReportExporter.h"
 
+
 /**
  Главный контроллер приложения
  Прием данных через WebSocket

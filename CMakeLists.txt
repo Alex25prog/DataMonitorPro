@@ -7,8 +7,8 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Quick QuickControls2 Network Sql WebSockets Pdf Widgets
-PrintSupport)
+find_package(Qt6 REQUIRED COMPONENTS Core Quick QuickControls2 Network Sql WebSockets Pdf Graphs Widgets
+)
 
 qt_add_executable(DataMonitorPro
     src/main.cpp
@@ -28,10 +28,7 @@ qt_add_executable(DataMonitorPro
     src/controllers/MainController.h
     src/export/ReportExporter.h
     src/export/ReportExporter.cpp
-    src/graphics/graphwidget.h
-    src/graphics/graphwidget.cpp
-    src/graphics/qcustomplot.h
-    src/graphics/qcustomplot.cpp
+
 )
 
 target_link_libraries(DataMonitorPro
@@ -43,8 +40,9 @@ target_link_libraries(DataMonitorPro
     Qt6::Sql
     Qt6::WebSockets
     Qt6::Pdf
+    Qt6::Graphs
     Qt6::Widgets
-    Qt6::PrintSupport
+
 
 )
 

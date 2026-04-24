@@ -4,7 +4,6 @@
 #include "controllers/MainController.h"
 #include <QSqlDatabase>
 #include <QDebug>
-#include "graphics/graphwidget.h"
 #include <QQuickStyle>
 int main(int argc, char *argv[])
 {
@@ -16,7 +15,7 @@ int main(int argc, char *argv[])
     QQmlApplicationEngine engine;
 
     //Регистрируем GraphWidget для QML
-    qmlRegisterType<GraphWidget>("DataMonitorPro", 1, 0, "GraphWidget");
+    //qmlRegisterType<GraphWidget>("DataMonitorPro", 1, 0, "GraphWidget");
     
     // Создаем контроллер
     MainController controller(&engine);

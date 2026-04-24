@@ -14,8 +14,11 @@
     , m_database(new DatabaseManager(this))
     , m_processor(new DataProcessor(this))
     , m_exporter (new ReportExporter(this))
+    , m_weatherFetcher(new WeatherFetcher(this))
+
 {
     // Подключаем сигналы
+    connect(m_processor, &DataProcessor::dataProcessed, this, &MainController::updateChart);
     connect(m_server, &WebSocketServer::dataReceived, this, &MainController::onDataReceived);
     connect(m_processor, &DataProcessor::dataProcessed, this, &MainController::onDataProcessed);
     connect(m_processor, &DataProcessor::dataProcessed, m_dataModel, &DataModel::addDataPoint);
@@ -35,8 +38,10 @@
     }else {
         qDebug() << "PostgreSQL ready";
     }
+
+
     //WeatherFetcher
-    m_weatherFetcher = new WeatherFetcher(this);
+    //m_weatherFetcher = new WeatherFetcher(this);
     m_weatherFetcher->setApiKey("15dcc84205e66754254850365e35c659"); //API key
 
     connect(m_weatherFetcher, &WeatherFetcher::weatherDataReceived,
@@ -44,9 +49,6 @@
 
     connect(m_weatherFetcher, &WeatherFetcher::errorOccurred,
             [](const QString& error) { qDebug() << "Weather error:" << error;});
-  //запускаем получение погоды каждые 10 минут (600 секунд)
-
-   // m_weatherFetcher->startFetching(600);(Далее используются кнопки start/stop)
 
     // Регистрируем модель для QML
     qmlRegisterUncreatableType<DataModel>("com.datamonitor", 1, 0, "DataModel", "Cannot create DataModel in QML");
@@ -55,9 +57,11 @@
     m_engine->rootContext()->setContextProperty("controller", this);
 }
 
+//Деструктор
 MainController::~MainController()
 {
     stopServer();
+
 }
 
 bool MainController::startServer(quint16 port)
@@ -127,7 +131,30 @@ DataPoint MainController::parseData(const QString& data)
 }
 void MainController::updateChart(const DataPoint& point)
 {
-    emit chartDataReceived(point.timestamp().toMSecsSinceEpoch(), point.value(), point.type());
+    //static double startTime = 0;
+    static int pointIndex = 0; // добавляем счетчик точек
+
+    //double currentTime = point.timestamp().toMSecsSinceEpoch() / 1000.0; // в секундах
+
+
+    //if (startTime == 0) {
+        //startTime = currentTime;
+    //}
+
+    double value = point.value();
+
+    //Нормализация значений для отображения на одном графике
+    if (point.type() == "temperature") {
+        value = point.value() * 10; //10C = 100
+            }else if (point.type() == "pressure") {
+        value = point.value() / 10.26; // 1026 hPa = 100
+            } else if (point.type() == "humidity") {
+                value = point.value(); // 50% = 50
+    }
+        qDebug() << "updateChart called:" << point.type() << "time=" << pointIndex << "value=" << value;
+        //Оставляем сигнал для QML
+        emit chartDataReceived(pointIndex, value, point.type());
+        pointIndex++; // 0, 1, 2, 3...
 }
 
 void MainController::onWeatherDataReceived(const QString& type, double value, const QString& unit)
@@ -173,10 +200,10 @@ void MainController::exportToPDF()
 void MainController::startWeather()//Метод старта
 {
     if (m_weatherFetcher){
-        m_weatherFetcher->startFetching(600);
+        m_weatherFetcher->startFetching(300);//обновления каждые 300сек(5мин)
         m_weatherRunning = true;
         emit weatherRunningChanged();//Отсылаем сигнал в QML для изменения кнопки
-        qDebug() << "Weather monitoring started";
+        qDebug() << "Weather monitoring started (interval: 300 sec)";
     }
 }
 

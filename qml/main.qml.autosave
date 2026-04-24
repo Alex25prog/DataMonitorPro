@@ -214,7 +214,7 @@ ApplicationWindow {
 
                 //Настрока темы и внешнего вида
                 theme: GraphsTheme {
-                   backgroundColor: "transparent" //Прозрачный фон всей областиэ
+                   backgroundColor: "transparent" //Прозрачный фон всей области
                    plotAreaBackgroundColor: "#1e1e1e" //темный фон только для графика
                    labelTextColor: "white"
           }

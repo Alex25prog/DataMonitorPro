@@ -1,4 +1,6 @@
 #include "DataModel.h"
+#include "../core/DataPoint.h"
+#include <QDebug>
 
 DataModel::DataModel(QObject *parent)
     : QAbstractListModel(parent)
