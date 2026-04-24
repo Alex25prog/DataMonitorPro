@@ -212,9 +212,10 @@ ApplicationWindow {
                 SplitView.preferredHeight: 300
                 Layout.fillWidth: true
 
+
                 //Настрока темы и внешнего вида
                 theme: GraphsTheme {
-                   backgroundColor: "transparent" //Прозрачный фон всей областиэ
+                   backgroundColor: "transparent" //Прозрачный фон всей области
                    plotAreaBackgroundColor: "#1e1e1e" //темный фон только для графика
                    labelTextColor: "white"
           }
@@ -282,6 +283,63 @@ ApplicationWindow {
                 }
 
             }
+
+            //Легенда
+            Row {
+                id: customLegend
+                anchors.top: graphsView.top     // Привязываем к верху графика
+                anchors.right: graphsView.right // Привязываем к правому краю графика
+                anchors.margins: 10             // отступ от края
+                spacing: 20                     // Расстояние между элементами
+                z: graphsView.z + 1             // Чтобы легенда была поверх графика
+
+                // Элемент 1: Температура
+                Row {
+                    spacing: 5
+                    Rectangle {
+                        width: 15
+                        height: 15
+                        radius: 2
+                        color: "#ff6666" // Тот же цвет, что у tempSeries
+                    }
+                    Text {
+                        text: "Temperature"
+                        color: "white"
+                        font.pixelSize: 12
+                    }
+                }
+
+                //Элемент 2: Давление
+                Row {
+                    spacing: 5
+                    Rectangle {
+                        width: 15
+                        height: 15
+                        radius: 2
+                        color: "#6666ff" // Тот же цвет, что у pressSeries
+                    }
+                    Text {
+                        text: "Pressure"
+                        color: "white"
+                        font.pixelSize: 12
+                    }
+                }
+                //Элемент 3: Влажность
+                Row {
+                    spacing: 5
+                    Rectangle {
+                        width: 15
+                        height: 15
+                        radius: 2
+                        color: "#66ff66" //Тот же цвет, что у humSeries
+                    }
+                    Text {
+                        text: "Humidity"
+                        color: "white"
+                        font.pixelSize: 12
+                    }
+                }
+           }
             // Таблица данных
             Rectangle {
                 SplitView.fillHeight: true
@@ -370,14 +428,22 @@ ApplicationWindow {
             function onChartDataReceived(index, value, type) {
                 console.log("QML received:", type, index, value)
 
+                // При первом получении данных добавляем нулевые точки для всех серий
+                if (tempSeries.count === 0 && pressSeries.count === 0 && humSeries.count === 0) {
+                    tempSeries.append(0, 0);
+                    pressSeries.append(0, 0);
+                    humSeries.append(0, 0);
+                    }
+
+                //Принудительно устанавливаем минимальный индекс для всех серий
                 if (type === "temperature") {
-                    tempSeries.append(index, value);
+                   tempSeries.append(index, value);
 
                 } else if (type === "pressure") {
                     pressSeries.append(index, value);
 
                 } else if (type === "humidity") {
-                    humSeries.append(index, value);
+                   humSeries.append(index, value);
 
              }
 
@@ -396,7 +462,7 @@ ApplicationWindow {
             }
         }
     }
-   }
+}
 
 
 
