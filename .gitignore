@@ -71,4 +71,17 @@ temp/
 
 # User-specific files
 *.user
-*.user.*
+*.user.*# ============================================
+# SECRETS - NEVER COMMIT!
+# ============================================
+.secrets/
+*.key
+*.secret
+*.pem
+*.priv
+*.enc
+.env
+.env.*
+!.env.example
+credentials/
+secrets/
