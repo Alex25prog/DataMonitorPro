@@ -7,7 +7,7 @@
 #include <QQuickStyle>
 int main(int argc, char *argv[])
 {
-    //QQuickStyle::setStyle("Material");
+    QQuickStyle::setStyle("Material");
     //qputenv("QT_QUICK_CONTROLS_MATERIAL_THEME", "Dark");//Включить темную тему
     QApplication app(argc, argv);
     qDebug() << "Доступные SQL драйверы:" << QSqlDatabase::drivers();
