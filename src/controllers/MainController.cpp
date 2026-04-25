@@ -1,4 +1,5 @@
 #include "MainController.h"
+#include "../core/SecretManager.h"
 #include <QQmlContext>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -32,23 +33,54 @@
     });
 
 
-    // Инициализируем базу данных
-    if (!m_database->connectToPostgreSQL("localhost", 5432, "datamonitor", "postgres", "12345")) {
-        qDebug() << "Failed to connect to PostgreSQL";
-    }else {
-        qDebug() << "PostgreSQL ready";
+
+    // Инициализируем базу данных(Берем пароль БД из переменного окружения)
+    //QString dbPassword = qgetenv("DB_PASSWORD");
+    //if (dbPassword.isEmpty()) {
+        //qDebug() << "WARNING: DB_PASSWORD enviroment variable not set! Using default (not recommended)";
+        //dbPassword = ""; // Можно оставить пустым
+    //}
+
+    //Загружаем API ключ через SecretManager
+    QString apiKey = SecretManager::getWeatherApiKey();
+    if (!apiKey.isEmpty()) {
+        m_weatherFetcher->setApiKey(apiKey);
+        qDebug() << "Weather API key loaded from secure storage";
+    } else {
+        qDebug() << "=================================";
+        qDebug() << "WARNING: Weather API key not found!";
+        qDebug() << "Please create file: .secrets/weather_api.key";
+        qDebug() << "With your API key from openWeatherMap";
+        qDebug() << "=================================";
     }
 
-
-    //WeatherFetcher
-    //m_weatherFetcher = new WeatherFetcher(this);
-    m_weatherFetcher->setApiKey("15dcc84205e66754254850365e35c659"); //API key
-
+    //Подключаем сигналы погоды
     connect(m_weatherFetcher, &WeatherFetcher::weatherDataReceived,
             this, &MainController::onWeatherDataReceived);
-
     connect(m_weatherFetcher, &WeatherFetcher::errorOccurred,
-            [](const QString& error) { qDebug() << "Weather error:" << error;});
+            [](const QString& error) {qDebug() << "Weather error:" << error;});
+
+        // Загружаем пароль БД из безопасной папки
+    QString dbPassword = SecretManager::getDbPassword();
+    if (dbPassword.isEmpty()) {
+        qDebug() << "WARNING: Database password not found in secure storage!";
+        dbPassword = ""; //Используем пустой пароль
+    }
+
+    // Остальные параметры БД (можно тоже вынести в сектреты при желании)
+    const QString DB_HOST = "localhost";
+    const int DB_PORT = 5432;
+    const QString DB_NAME = "datamonitor";
+    const QString DB_USER = "postgres";
+
+
+    if (!m_database->connectToPostgreSQL(DB_HOST, DB_PORT, DB_NAME, DB_USER, dbPassword)) {
+        qDebug() << "Failed to connect to PostgreSQL";
+        qDebug() << "Please ensure PostgreSQL is running and database 'datamonitor' exists";
+    }else {
+        qDebug() << "PostgreSQL connected successfully";
+    }
+
 
     // Регистрируем модель для QML
     qmlRegisterUncreatableType<DataModel>("com.datamonitor", 1, 0, "DataModel", "Cannot create DataModel in QML");

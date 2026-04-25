@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(DataMonitorPro)
 
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
@@ -28,6 +29,7 @@ qt_add_executable(DataMonitorPro
     src/controllers/MainController.h
     src/export/ReportExporter.h
     src/export/ReportExporter.cpp
+    src/core/SecretManager.h
 
 )
 
@@ -46,9 +48,14 @@ target_link_libraries(DataMonitorPro
 
 )
 
+# Установка политик Qt для подавления предупреждений
+qt_policy(SET QTP0001 NEW) # Для QML resourse prefix
+qt_policy(SET QTP0004 NEW) # Для qmldir files
+
 qt_add_qml_module(DataMonitorPro
     URI DataMonitorPro
     VERSION 1.0
+    RESOURCE_PREFIX "/"
     QML_FILES
         qml/main.qml
 
