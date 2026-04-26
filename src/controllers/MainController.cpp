@@ -248,3 +248,12 @@ void MainController::stopWeather()//Метод стоп
         qDebug() << "Weather monitoring stopped";
     }
 }
+
+void MainController::clearData()//метод для очистки данных(графика)
+{
+    //Очищаем модель данных (таблицу)
+    m_dataModel->clear();
+
+    //Отправляем сигнал для очистки графика в QML
+    emit clearGraphRequested();
+}

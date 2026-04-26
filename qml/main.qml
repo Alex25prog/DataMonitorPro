@@ -63,7 +63,9 @@ ApplicationWindow {
                     font.bold: true
                 }
 
-                onClicked: controller.dataModel.clear()
+                onClicked: {
+                    controller.clearData()// Вызываем метод контроллера
+               }
             }
             //Load History кнопка
 
@@ -425,6 +427,21 @@ ApplicationWindow {
 
         Connections {
             target: controller
+            function onClearGraphRequested() {
+                //Очищаем все серии графика
+                tempSeries.clear()
+                pressSeries.clear()
+                humSeries.clear()
+
+                //Сбрасываем оси
+                axisX.min = 0
+                axisX.max = 60
+                axisY.min = 0
+                axisY.max = 110
+
+                console.log("Graph cleared")
+            }
+
             function onChartDataReceived(index, value, type) {
                 console.log("QML received:", type, index, value)
 

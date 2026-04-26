@@ -45,11 +45,13 @@ public:
     Q_INVOKABLE void exportToPDF();//методы экспорта
     Q_INVOKABLE void startWeather();
     Q_INVOKABLE void stopWeather();
+    Q_INVOKABLE void clearData();
     Q_PROPERTY(bool isWeatherRunning READ isWeatherRunning NOTIFY weatherRunningChanged)
 signals:
     void serverRunningChanged(); //Сигнал об изменении статуса сервера
     void chartDataReceived(qreal timestamp, qreal value, QString type); //Сигнал для передачи данных в график
     void weatherRunningChanged();
+    void clearGraphRequested();//Сигнал для очистки графика
 
 private slots:
     void onDataReceived(const QString& data); //Обработчик получения данных от WebSocket-сервера
