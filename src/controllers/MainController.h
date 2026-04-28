@@ -46,6 +46,7 @@ public:
     Q_INVOKABLE void startWeather();
     Q_INVOKABLE void stopWeather();
     Q_INVOKABLE void clearData();
+    Q_INVOKABLE void setCity(const QString& city);//Для приема города
     Q_PROPERTY(bool isWeatherRunning READ isWeatherRunning NOTIFY weatherRunningChanged)
 signals:
     void serverRunningChanged(); //Сигнал об изменении статуса сервера

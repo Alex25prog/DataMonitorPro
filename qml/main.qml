@@ -11,6 +11,23 @@ ApplicationWindow {
     title: qsTr("DataMonitor Pro")
     background: Rectangle { color: "#1e1e1e" }//Задание принудительного цвета
 
+    //Функция для обновления списка городов
+    function updateCityList() {
+        var cities = {
+            "Russia": ["Select City", "Moscow", "Saint Petersburg", "Novosibirsk", "Kazan", "Yekaterinburg", "Voronezh"],
+            "USA": ["Select City", "New York", "Los Angeles", "Chicago", "Houston", "Miami"],
+            "Germany": ["Select City", "Berlin", "Munich", "Hamburg", "Cologne", "Frankfurt"],
+            "France": ["Select City", "Paris", "Marseille", "Lyon", "Toulouse", "Nice"],
+            "UK": ["Select City", "London", "Manchester", "Birmingham", "Liverpool", "Edinburgh"],
+            "Japan": ["Select City", "Tokyo", "Osaka", "Kyoto", "Yokohama", "Nagoya"]
+        }
+
+        var selectedCountry = countrySelect.currentText
+        var cityList = cities[selectedCountry] || ["Moscow"]
+        citySelect.model = cityList
+        citySelect.currentIndex = 0
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 10
@@ -126,6 +143,216 @@ ApplicationWindow {
 
                 onClicked: controller.exportToPDF()
             }
+
+            //Выбор страны и города
+
+            Rectangle {
+                height: 35
+                width: 300
+                color: "#3d3d3d"
+                radius: 5
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 5
+                    spacing: 5
+
+                    ComboBox {
+                        id: countrySelect
+                        model: ["▼ Select Country", "Russia", "USA", "Germany", "France", "UK", "Japan"]
+                        currentIndex: 0
+                        font.pixelSize: 12
+                        implicitWidth: 145
+
+                        //Стиль фона
+                        background: Rectangle {
+                            color: "#e8e9ef"
+                            radius: 3
+                            border.color: "#c0c0c0"
+                            border.width: 1
+                        }
+
+                        //Стиль текста
+                        contentItem: Text {
+                            text: countrySelect.currentText
+                            color: currentIndex === 0 ? "#666666" : "#2c3e50"
+                            font.bold: true
+                            horizontalAlignment: Text.AlignLeft
+                            verticalAlignment: Text.AlignHCenter
+                            leftPadding: 8
+
+                            }
+
+                        //Стиль стрелки
+                        indicator: Canvas {
+                            id: canvas
+                            x: countrySelect.width - width - 10
+                            y: countrySelect.height / 2 - height / 2
+                            width: 12
+                            height: 8
+                            contextType: "2d"
+                            onPaint: {
+                                context.reset()
+                                context.moveTo(0, 0)
+                                context.lineTo(width, 0)
+                                context.lineTo(width / 2, height)
+                                context.fillStyle = "#666666"
+                                context.fill()
+                            }
+
+                        }
+
+                        // Стиль всплывающего списка
+                        popup: Popup {
+                            y: countrySelect.height
+                            width: countrySelect.width
+                            implicitHeight: contentItem.implicitHeight
+                            padding: 1
+
+                            background: Rectangle {
+                                color: "#ffffff"
+                                border.color: "#c0c0c0"
+                                border.width: 1
+                                radius: 3
+                            }
+
+                            contentItem: ListView {
+                                clip: true
+                                implicitHeight: contentHeight
+                                model: countrySelect.popup.visible ? countrySelect.delegateModel : null
+                                currentIndex: countrySelect.heightlightedIndex
+
+                                delegate: ItemDelegate {
+                                    width: countrySelect.width
+                                    height: 30
+                                    highlighted: ListView.isCurrentItem
+
+                                    contentItem: Text {
+                                        text: modelData
+                                        color: highlighted ? "#ffffff" : "#2c3e50"
+                                        font.pixelSize: 12
+                                        font.bold: highlighted ? true : false
+                                        horizontalAlignment: Text.AlignLeft
+                                        verticalAlignment: Text.AlignHCenter
+                                        leftPadding: 8
+
+                                    }
+
+                                    background: Rectangle {
+                                        color: highlighted ? "#4CAF50" : "#f5f5f5"
+                                    }
+                                }
+
+                            }
+
+                        }
+                        onCurrentTextChanged: {
+                            if (currentIndex > 0) {
+                            updateCityList()
+
+                    }
+
+                }
+            }
+                ComboBox {
+                    id:citySelect
+                    model: ["▼ Select City", "Moscow", "Saint Petersburg", "Novosibirsk", "Kazan", "Voronezh"]
+                    currentIndex: 0
+                    font.pixelSize: 12
+                    implicitWidth: 145
+                    font.bold: true
+
+                    // Стиль фона
+                    background: Rectangle {
+                        color: "#e8e9ef"
+                        radius: 3
+                        border.color: "#c0c0c0"
+                        border.width: 1
+                    }
+
+                    //Стиль текста
+                    contentItem: Text {
+                        text: citySelect.currentText
+                        color: currentIndex === 0 ? "#666666" : "#2c3e50"
+                        font.pixelSize: 12
+                        font.bold: true
+                        horizontalAlignment: Text.AlignLeft
+                        verticalAlignment: Text.AlignHCenter
+                        leftPadding: 8
+                    }
+
+                    // Стиль стрелки
+                    indicator: Canvas {
+                        id: cityCanvas
+                        x: citySelect.width - width - 10
+                        y: citySelect.height / 2 - height / 2
+                        width: 12
+                        height: 8
+                        contextType: "2d"
+                        onPaint: {
+                            context.reset()
+                            context.moveTo(0, 0)
+                            context.lineTo(width, 0)
+                            context.lineTo(width / 2, height)
+                            context.fillStyle = "#666666"
+                            context.fill()
+                        }
+
+                    }
+
+                    // Стиль всплывающего окна
+                    popup: Popup {
+                        y: citySelect.height
+                        width: citySelect.width
+                        implicitHeight: contentItem.implicitHeight
+                        padding: 1
+
+                        background: Rectangle {
+                            color: "#ffffff"
+                            border.color: "#c0c0c0"
+                            border.width: 1
+                            radius: 3
+                        }
+
+                        contentItem: ListView {
+                            clip: true
+                            implicitHeight: contentHeight
+                            model: citySelect.popup.visible ? citySelect.delegateModel : null
+                            currentIndex: citySelect.highlightedIndex
+
+                            delegate: ItemDelegate {
+                                width: citySelect.width
+                                height: 30
+                                highlighted: ListView.isCurrentItem
+
+                                contentItem: Text {
+                                    text: modelData
+                                    color: highlighted ? "ffffff" : "#2c3e50"
+                                    font.pixelSize: 12
+                                    font.bold: highlighted ? true : false
+                                    horizontalAlignment: Text.AlignLeft
+                                    verticalAlignment: Text.AlignVCenter
+                                    leftPadding: 8
+                                }
+
+                                background: Rectangle {
+                                    color: highlighted ? "#4CAF50" : "f5f5f5"
+                                }
+                            }
+                        }
+                    }
+
+                    onCurrentTextChanged: {
+                        //Обновляем погоду при смене города
+                        if (currentIndex > 0 && controller.isWeatherRunning) {
+                            controller.stopWeather()
+                            controller.startWeather()
+
+                        }
+                    }
+                }
+            }
+        }
             //Кнопка парсинга погоды
 
             Button{
@@ -176,7 +403,7 @@ ApplicationWindow {
         Rectangle {
             Layout.fillWidth: true
             height: 50
-            color: "#808080"
+            color: "#e8e9ef" //Светлый фон
             radius: 5
 
             RowLayout {
@@ -186,11 +413,93 @@ ApplicationWindow {
 
                 Label { text: "Filter by type:"
 
-                        color: "#B22222"
+                        color: "#2c3e50" //Темный текст
+                        font.bold: true
+                        font.pixelSize: 12
                 }
                 ComboBox {
                     id: typeFilter
                     model: ["All", "temperature", "pressure", "humidity"]
+                    currentIndex: 0
+                    font.pixelSize: 12
+                    font.bold: true
+                    implicitWidth: 120
+
+                    background: Rectangle {
+                        color: "#e8e8ef"
+                        radius: 4
+                        border.color: "#c0c0c0"
+                        border.width: 1
+                    }
+
+                    contentItem: Text {
+                        text: typeFilter.currentText
+                        color: currentIndex === 0 ? "#666666" : "#2c3e50"
+                        font.pixelSize: 12
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignHCenter
+
+                    }
+
+                    indicator: Canvas {
+                        id: filterCanvas
+                        x: typeFilter.width - width - 10
+                        y: typeFilter.height / 2 - height / 2
+                        width: 12
+                        height: 8
+                        contextType: "2d"
+                        onPaint: {
+                            context.reset()
+                            context.moveTo(0, 0)
+                            context.lineTo(width, 0)
+                            context.lineTo(width / 2, height)
+                            context.fillStyle = "#666666"
+                            context.fill()
+                        }
+
+                    }
+
+                    popup: Popup {
+                    y: typeFilter.height
+                    width: typeFilter.width
+                    implicitHeight: contentItem.implicitHeight
+                    padding: 1
+
+                    background: Rectangle {
+                        color: "#ffffff"
+                        border.color: "#c0c0c0"
+                        border.width: 1
+                        radius: 4
+                    }
+
+                    contentItem: ListView {
+                    clip: true
+                    implicitHeight: contentHeight
+                    model: typeFilter.popup.visible ? typeFilter.delegateModel : null
+                    currentIndex: typeFilter.highlightedIndex
+
+                    delegate: ItemDelegate {
+                        width: typeFilter.width
+                        height: 30
+                        highlighted: ListView.isCurrentItem
+
+                        contentItem: Text {
+                            text: modelData
+                            color: highlighted ? "#ffffff" : "#2c3e50"
+                            font.bold: highlighted ? true : false
+                            horizontalAlignment: Text.AlignLeft
+                            verticalAlignment: Text.AlignVCenter
+                            leftPadding: 8
+                        }
+
+                        background: Rectangle {
+                            color: highlighted ? "#4CAF50" : "#f5f5f5"
+                        }
+                    }
+                }
+            }
+
                     onCurrentTextChanged: {
                         if (currentText === "All") {
                             controller.dataModel.resetFilters()
