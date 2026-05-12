@@ -23,9 +23,21 @@ ApplicationWindow {
         }
 
         var selectedCountry = countrySelect.currentText
-        var cityList = cities[selectedCountry] || ["Moscow"]
+        var cityList = cities[selectedCountry]
+
+        if (cityList) {
+
         citySelect.model = cityList
         citySelect.currentIndex = 0
+        //citySelect.enabled = true
+        controller.setCity("") // Сбрасываем выбор города при смене страны
+
+    } else {
+            citySelect.model = ["Select City"]
+            citySelect.currentIndex = 0
+            //citySelect.enabled = true // Всегда активен, но только один пункт
+            controller.setCity("")
+        }
     }
 
     ColumnLayout {
@@ -164,6 +176,16 @@ ApplicationWindow {
                         font.pixelSize: 12
                         implicitWidth: 145
 
+                        onCurrentTextChanged: {
+                            if (currentIndex > 0) {
+                                updateCityList()
+                            } else {
+                                citySelect.model = ["Select City"]
+                                citySelect.currentIndex = 0
+                                controller.setCity("")
+                            }
+                        }
+
                         //Стиль фона
                         background: Rectangle {
                             color: "#e8e9ef"
@@ -245,26 +267,31 @@ ApplicationWindow {
 
                             }
 
-                        }
-                        onCurrentTextChanged: {
-                            if (currentIndex > 0) {
-                            updateCityList()
-
-                    }
 
                 }
             }
                 ComboBox {
                     id:citySelect
-                    model: ["▼ Select City", "Moscow", "Saint Petersburg", "Novosibirsk", "Kazan", "Voronezh"]
+                    model: ["▼ Select City"]
                     currentIndex: 0
+                    enabled: true // Всегда активен, но выбора нет
+
+                    onCurrentTextChanged: {
+                        if (currentIndex > 0 && currentText !== "Select City" && currentText !== "▼ Select City") {
+                            controller.setCity(currentText)
+
+                        } else {
+                            controller.setCity("")
+                        }
+                    }
+
                     font.pixelSize: 12
                     implicitWidth: 145
                     font.bold: true
 
                     // Стиль фона
                     background: Rectangle {
-                        color: "#e8e9ef"
+                        color: citySelect.enabled ? "#e8e9ef" : "#cccccc"
                         radius: 3
                         border.color: "#c0c0c0"
                         border.width: 1
@@ -342,14 +369,6 @@ ApplicationWindow {
                         }
                     }
 
-                    onCurrentTextChanged: {
-                        //Обновляем погоду при смене города
-                        if (currentIndex > 0 && controller.isWeatherRunning) {
-                            controller.stopWeather()
-                            controller.startWeather()
-
-                        }
-                    }
                 }
             }
         }
@@ -358,14 +377,21 @@ ApplicationWindow {
             Button{
                 id: weatherButton
                 text: controller.isWeatherRunning ? "Stop Weather" : "Start Weather"
+                enabled: controller.isCitySelected
 
                 //Стиль кнопки "Прямоугольник"
                 background: Rectangle {
-                    color: controller.isWeatherRunning ? "#2e7d32" : "#c62828" //темно-зеленый/темно-красный
+                    color: {
+                        if (!enabled) return "#999999" // Серый цвет когда не активна
+                        return controller.isWeatherRunning ? "#2e7d32" : "#c62828" //темно-зеленый/темно-красный
+                    }
                     radius: 15//В пикселях
                     border.width: 1//толщина контура
-                    border.color: controller.isWeatherRunning ? "#4caf50" : "#ef5053"
-                    opacity: parent.pressed ? 0.7 : 1.0
+                    border.color: {
+                        if (!enabled) return "#666666"
+                        return controller.isWeatherRunning ? "#4caf50" : "#ef5053"
+                    }
+                    opacity: parent.pressed && enabled ? 0.7 : 1.0
 
 
                      //Анимация при наведении
@@ -376,7 +402,7 @@ ApplicationWindow {
                     }
                 contentItem: Text {
                     text: weatherButton.text
-                    color: "black"
+                    color: enabled ? "black" : "#666666"
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                     font.bold: true
@@ -384,6 +410,11 @@ ApplicationWindow {
                 }
 
                 onClicked: {
+                    if (!controller.isCitySelected) {
+                        console.log("No city selected")
+                        return
+                    }
+
                     if (controller.isWeatherRunning){
                         controller.stopWeather()
 

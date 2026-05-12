@@ -249,6 +249,38 @@ void MainController::stopWeather()//Метод стоп
     }
 }
 
+void MainController::setCity(const QString& city)
+{
+    qDebug() << "setCity called:" << city;
+
+    if (m_weatherFetcher) {
+        // Проверяем, что выбран реальный город
+        bool validCity = !city.isEmpty() && city != "Select City" && city != "▼ Select City";
+
+        if (validCity) {
+            m_weatherFetcher->setCurrentCity(city);
+            if (!m_citySelected) {
+                m_citySelected = true;
+                emit citySelectedChanged();
+                qDebug() << "City selected:" << city;
+            }
+
+            // Если погода уже запущена - обновляем данные для нового города
+            if (m_weatherRunning) {
+                m_weatherFetcher->stopFetching();
+                m_weatherFetcher->fetchNow(city);
+                m_weatherFetcher->startFetching(300);
+                qDebug() << "Weather automatically update for city:" << city;
+            }
+        } else {
+            if (m_citySelected) {
+                m_citySelected = false;
+                emit citySelectedChanged();
+                qDebug() << "City deselected";
+            }
+        }
+    }
+}
 void MainController::clearData()//метод для очистки данных(графика)
 {
     //Очищаем модель данных (таблицу)

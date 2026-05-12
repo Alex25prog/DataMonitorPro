@@ -20,7 +20,8 @@ public:
     void startFetching(int intervalSecond = 600);//Запускает периодический сбор данных о погоде(интервал 600 = 10мин)
     void stopFetching();//Останавливает периодический сбор данных
     void fetchNow(const QString& city = "Moscow");//Принудительный запрос погоды прямо сейчас(город по умолчанию "Moscow")
-
+    void setCurrentCity(const QString& city) { m_currentCity = city; }
+    QString getCurrentCity() const { return m_currentCity; }
 
 signals:
         /** Сигнал, испускаемый при получении новых данных о погоде

@@ -27,6 +27,8 @@ class MainController : public QObject
     // Q_PROPERTY позволяет QML обращаться к этим свойствам как к обычным переменным
     Q_PROPERTY(DataModel* dataModel READ dataModel CONSTANT) // Модель данных для таблицы
     Q_PROPERTY(bool isServerRunning READ isServerRunning NOTIFY serverRunningChanged) // Статус сервера
+    Q_PROPERTY(bool isWeatherRunning READ isWeatherRunning NOTIFY weatherRunningChanged)
+    Q_PROPERTY(bool isCitySelected READ isCitySelected NOTIFY citySelectedChanged)
 
 public:
     //Конструктор
@@ -37,6 +39,7 @@ public:
     DataModel* dataModel() const { return m_dataModel; } //Возвращает модель данных для QML
     bool isServerRunning() const { return m_serverRunning; } //Возвращает статус сервера (запущен/остановлен)
     bool isWeatherRunning() const { return m_weatherRunning; }
+    bool isCitySelected() const { return m_citySelected; }
     
     Q_INVOKABLE bool startServer(quint16 port = 8080); //Запускает WebSocket-сервер
     Q_INVOKABLE void stopServer(); //Останавливает WebSocket-сервер
@@ -47,11 +50,12 @@ public:
     Q_INVOKABLE void stopWeather();
     Q_INVOKABLE void clearData();
     Q_INVOKABLE void setCity(const QString& city);//Для приема города
-    Q_PROPERTY(bool isWeatherRunning READ isWeatherRunning NOTIFY weatherRunningChanged)
+
 signals:
     void serverRunningChanged(); //Сигнал об изменении статуса сервера
     void chartDataReceived(qreal timestamp, qreal value, QString type); //Сигнал для передачи данных в график
     void weatherRunningChanged();
+    void citySelectedChanged();
     void clearGraphRequested();//Сигнал для очистки графика
 
 private slots:
@@ -71,6 +75,7 @@ private:
     ReportExporter* m_exporter;
     DataPoint parseData(const QString& data);//Парсит JSON-строку в объект DataPoint
     bool m_weatherRunning = false;
+    bool m_citySelected = false;
 
 };
 
