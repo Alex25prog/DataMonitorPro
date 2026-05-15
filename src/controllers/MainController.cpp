@@ -163,27 +163,23 @@ DataPoint MainController::parseData(const QString& data)
 }
 void MainController::updateChart(const DataPoint& point)
 {
-    //static double startTime = 0;
+
     static int pointIndex = 0; // добавляем счетчик точек
 
-    //double currentTime = point.timestamp().toMSecsSinceEpoch() / 1000.0; // в секундах
-
-
-    //if (startTime == 0) {
-        //startTime = currentTime;
-    //}
-
-    double value = point.value();
+    double value = point.value(); // Без нормализации
 
     //Нормализация значений для отображения на одном графике
-    if (point.type() == "temperature") {
-        value = point.value() * 10; //10C = 100
-            }else if (point.type() == "pressure") {
-        value = point.value() / 10.26; // 1026 hPa = 100
-            } else if (point.type() == "humidity") {
-                value = point.value(); // 50% = 50
-    }
-        qDebug() << "updateChart called:" << point.type() << "time=" << pointIndex << "value=" << value;
+    //if (point.type() == "temperature") {
+        // Температура: от -50 до +50 (диапозон 100)
+        //value = (point.value() + 30) * 100 / 70; // -50 -> 0, +50 -> 90
+            //}else if (point.type() == "pressure") {
+                // давление: 950 до 1050 (диапазон 100)
+               // value = (point.value() - 950) * 100 / 60; // 950 -> 0, 1050 -> 90
+           // } else if (point.type() == "humidity") {
+                // Влажность: 0-100
+               // value = point.value(); // 0 -> 0, 100 -> 90
+   // }
+        qDebug() << "updateChart called:" << point.type() << "value=" << value;
         //Оставляем сигнал для QML
         emit chartDataReceived(pointIndex, value, point.type());
         pointIndex++; // 0, 1, 2, 3...
@@ -289,3 +285,42 @@ void MainController::clearData()//метод для очистки данных(
     //Отправляем сигнал для очистки графика в QML
     emit clearGraphRequested();
 }
+
+// Метод добавления свечей
+void MainController::addCandle(double open, double high, double low, double close, const QString& timestamp)
+{
+    CandleData candle;
+    candle.open = open;
+    candle.high = high;
+    candle.low = low;
+    candle.close = close;
+    candle.timestamp = QDateTime::fromString(timestamp, Qt::ISODate);
+
+    m_candles.append(candle);
+
+    // Отправить в сигнал QML
+    emit candleDataReceived(open, high, low, close, timestamp);
+
+        qDebug() << "Candle added:" << timestamp << "O:" << open << "H:" << high << "L:" << low << "C:" << close;
+}
+
+// В MainController.cpp добавим тестовый метод:
+/*void MainController::generateTestCandles()
+{
+    // Имитация 20 свечей
+    QDateTime time = QDateTime::currentDateTime();
+    double price = 50000.0;  // Начальная цена BTC/USDT
+
+    for (int i = 0; i < 20; i++) {
+        double change = (rand() % 200 - 100) / 100.0;  // -1% до +1%
+        double open = price;
+        double close = price * (1 + change);
+        double high = qMax(open, close) + (rand() % 100);
+        double low = qMin(open, close) - (rand() % 100);
+
+        addCandle(open, high, low, close, time.toString(Qt::ISODate));
+
+        price = close;
+        time = time.addSecs(3600);  // +1 час
+    }
+*/

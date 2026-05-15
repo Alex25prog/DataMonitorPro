@@ -7,6 +7,8 @@
 #include <QQuickStyle>
 int main(int argc, char *argv[])
 {
+    qputenv("QSG_RHI_BACKEND", "opengl");
+    qputenv("QT_QUICK_CONTROLS_CONF", ":/qtquickcontrols2.conf");
     QQuickStyle::setStyle("Material");
     //qputenv("QT_QUICK_CONTROLS_MATERIAL_THEME", "Dark");//Включить темную тему
     QApplication app(argc, argv);

@@ -8,8 +8,13 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Quick QuickControls2 Network Sql WebSockets Pdf Graphs Widgets
-)
+if (MSVC)
+    add_compile_options(/utf-8)
+    add_compile_options(/MP)
+endif()
+
+find_package(Qt6 REQUIRED COMPONENTS Core Quick QuickControls2 Network Sql WebSockets Pdf Widgets
+Charts ChartsQml)
 
 qt_add_executable(DataMonitorPro
     src/main.cpp
@@ -42,11 +47,14 @@ target_link_libraries(DataMonitorPro
     Qt6::Sql
     Qt6::WebSockets
     Qt6::Pdf
-    Qt6::Graphs
+    #Qt6::Graphs
     Qt6::Widgets
-
+    Qt6::Charts
+    Qt6::ChartsQml
 
 )
+
+qt_import_qml_plugins(DataMonitorPro)
 
 # Установка политик Qt для подавления предупреждений
 qt_policy(SET QTP0001 NEW) # Для QML resourse prefix
@@ -58,11 +66,16 @@ qt_add_qml_module(DataMonitorPro
     RESOURCE_PREFIX "/"
     QML_FILES
         qml/main.qml
-
+    DEPENDENCIES
+        QtCharts
 
 )
+
 
 target_compile_definitions(DataMonitorPro
     PRIVATE
     QT_QUICKCONTROLS2_CONFIG=material
 )
+
+# Явное указание путей для статического анализатора Qt Creator
+set(QML_IMPORT_PATH ${Qt6_INSTALL_PREFIX}/qml CACHE STRING "QML Import Path" FORCE)

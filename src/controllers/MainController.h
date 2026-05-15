@@ -21,6 +21,15 @@
  Отображение в QML (DataModel)
  Автоматический сбор погоды (WeatherFetcher)
 */
+
+struct CandleData {
+    QDateTime timestamp;
+    double open;
+    double high;
+    double low;
+    double close;
+};
+
 class MainController : public QObject
 {
     Q_OBJECT // Макрос для поддержки сигналов/слотов и метаобъектной системы Qt
@@ -50,6 +59,7 @@ public:
     Q_INVOKABLE void stopWeather();
     Q_INVOKABLE void clearData();
     Q_INVOKABLE void setCity(const QString& city);//Для приема города
+    Q_INVOKABLE void addCandle(double open, double high, double low, double close, const QString& timestamp);
 
 signals:
     void serverRunningChanged(); //Сигнал об изменении статуса сервера
@@ -57,6 +67,7 @@ signals:
     void weatherRunningChanged();
     void citySelectedChanged();
     void clearGraphRequested();//Сигнал для очистки графика
+    void candleDataReceived(double open, double high, double low, double close, QString timestamp);
 
 private slots:
     void onDataReceived(const QString& data); //Обработчик получения данных от WebSocket-сервера
@@ -76,6 +87,7 @@ private:
     DataPoint parseData(const QString& data);//Парсит JSON-строку в объект DataPoint
     bool m_weatherRunning = false;
     bool m_citySelected = false;
+    QList<CandleData> m_candles;
 
 };
 
