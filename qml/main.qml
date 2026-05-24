@@ -48,24 +48,35 @@ ApplicationWindow {
 
         // Верхняя панель с кнопками
         RowLayout {
+            spacing: 5
+
+            Column {
+                Layout.alignment: Qt.AlignVCenter // Выравниваем относительно других кнопок
+                //Layout.topMargin: 14 // Верхний отступ, чтобы сделать кнопку ниже
+                spacing: 2
+                //Layout.alignment: Qt.AlignBottom
+
             // Start/Stop Server кнопка
             Button {
                 id: serverButton
-                text: controller.isServerRunning ? "Stop Server" : "Start Server"
+                implicitWidth: 85
+                implicitHeight: 45
 
                 background: Rectangle {
                     color: controller.isServerRunning ? "#2e7d32" : "#1565c0"
                     radius: 15
                     opacity: parent.pressed ? 0.7 : 1.0
+
                 }
 
                 contentItem: Text {
-                    text: serverButton.text
-                    color: "white"
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignHCenter
-                    font.bold: true
-                }
+                        text: controller.isServerRunning ? "Stop Server" : "Start Server"
+                        color: "black"
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignHCenter
+
+                    }
 
                 onClicked: {
                     if (controller.isServerRunning) {
@@ -76,13 +87,22 @@ ApplicationWindow {
                 }
             }
 
+            Text {
+                text: controller.isServerRunning ? "● Server Running" : "○ Server Stopped"
+                color: controller.isServerRunning ? "#4caf50" : "#f44336"
+                font.pixelSize: 9
+                horizontalAlignment: Text.AlignHCenter
+        }
+    }
             // Clear Data кнопка
             Button {
                 text: "Clear Data"
+                implicitWidth: 85
                 background: Rectangle {
                     color: "#e8e9ef"
                     radius: 8
                     opacity: parent.pressed ? 0.7 : 1.0
+
                 }
                 contentItem: Text {
                     text: "Clear Data"
@@ -99,6 +119,7 @@ ApplicationWindow {
             // Load History кнопка
             Button {
                 text: "Load History (Last 24h)"
+                implicitWidth: 140
                 background: Rectangle {
                     color: "#e8e9ef"
                     radius: 8
@@ -121,6 +142,7 @@ ApplicationWindow {
             // Export CSV
             Button {
                 text: "Export CSV"
+                implicitWidth: 85
                 background: Rectangle {
                     color: "#e8e9ef"
                     radius: 8
@@ -130,6 +152,9 @@ ApplicationWindow {
                     text: "Export CSV"
                     color: "black"
                     font.bold: true
+                    horizontalAlignment: Text.AlignHCenter  //текст по центру
+                    verticalAlignment: Text.AlignVCenter
+
                 }
                 onClicked: controller.exportToCSV()
             }
@@ -137,6 +162,7 @@ ApplicationWindow {
             // Export PDF
             Button {
                 text: "Export PDF"
+                implicitWidth: 85
                 background: Rectangle {
                     color: "#e8e9ef"
                     radius: 8
@@ -146,8 +172,57 @@ ApplicationWindow {
                     text: "Export PDF"
                     color: "black"
                     font.bold: true
+                    horizontalAlignment: Text.AlignHCenter  // текст по центру
+                    verticalAlignment: Text.AlignVCenter
                 }
                 onClicked: controller.exportToPDF()
+            }
+
+            // Кнопки переключения графиков
+            Button {
+                text: "Weather"
+                implicitWidth: 85
+                background: Rectangle {
+                    color: showWeatherGraph ? "#4caf50" : "#e8e9ef"
+                    radius: 8
+                }
+                contentItem: Text {
+                   text: "Weather"
+                   color: showWeatherGraph ? "white" : "black"
+                   font.bold: true
+                   horizontalAlignment: Text.Center
+
+                }
+
+                onClicked: {
+                    showWeatherGraph = true
+                    showTradingGraph = false
+                }
+            }
+            // Кнопка переключения биржи
+            Button {
+                text: "Birzha"
+                implicitWidth: 85
+                background: Rectangle {
+                    color: showTradingGraph ? "#4caf50" : "#e8e9ef"
+                    radius: 8
+                }
+                contentItem: Text {
+                    text: "Birzha"
+                    color: showTradingGraph ? "white" : "black"
+                    font.bold: true
+                    horizontalAlignment: Text.Center
+                }
+                onClicked: {
+                    showWeatherGraph = false
+                    showTradingGraph = true
+                }
+            }
+
+            // Расширетель (переместить вправо)
+            Item {
+                Layout.fillWidth: true // Занимает все свободное пространство
+                height: 1
             }
 
             // Выбор страны и города
@@ -167,7 +242,7 @@ ApplicationWindow {
                         model: ["▼ Select Country", "Russia", "USA", "Germany", "France", "UK", "Japan"]
                         currentIndex: 0
                         font.pixelSize: 12
-                        implicitWidth: 145
+                        implicitWidth: 130
 
                         onCurrentTextChanged: {
                             if (currentIndex > 0) {
@@ -253,41 +328,6 @@ ApplicationWindow {
                             }
                         }
                     }
-                    // Кнопки переключения графиков
-                    Button {
-                        text: "Weather"
-                        background: Rectangle {
-                            color: showWeatherGraph ? "#4caf50" : "#e8e9f"
-                            radius: 8
-                        }
-                        contentItem: Text {
-                           text: "Weather"
-                           color: showWeatherGraph ? "white" : "black"
-                           font.bold: true
-                        }
-
-                        onClicked: {
-                            showWeatherGraph = true
-                            showTradingGraph = false
-                        }
-                    }
-                    // Кнопка переключения биржи
-                    Button {
-                        text: "Birzha"
-                        background: Rectangle {
-                            color: showTradingGraph ? "#4caf50" : "#e8e9ef"
-                            radius: 8
-                        }
-                        contentItem: Text {
-                            text: "Birzha"
-                            color: showTradingGraph ? "white" : "black"
-                            font.bold: true
-                        }
-                        onClicked: {
-                            showWeatherGraph = false
-                            showTradingGraph = true
-                        }
-                    }
 
                     ComboBox {
                         id: citySelect
@@ -304,7 +344,7 @@ ApplicationWindow {
                         }
 
                         font.pixelSize: 12
-                        implicitWidth: 145
+                        implicitWidth: 130
                         font.bold: true
 
                         background: Rectangle {
@@ -431,10 +471,6 @@ ApplicationWindow {
                 }
             }
 
-            Label {
-                text: controller.isServerRunning ? "● Server Running" : "○ Server Stopped"
-                color: controller.isServerRunning ? "#4caf50" : "#f44336"
-            }
         }
 
         // Фильтры
@@ -540,8 +576,24 @@ ApplicationWindow {
 
                     onCurrentTextChanged: {
                         if (currentText === "All") {
+                            tempSeries.visible = true
+                            pressSeries.visible = true
+                            humSeries.visible = true
                             controller.dataModel.resetFilters()
-                        } else {
+                        } else if (currentText === "temperature") {
+                            tempSeries.visible = true
+                            pressSeries.visible = false
+                            humSeries.visible = false
+                            controller.dataModel.setTypeFilter(currentText)
+                        } else if (currentText === "pressure") {
+                            tempSeries.visible = false
+                            pressSeries.visible = true
+                            humSeries.visible = false
+                            controller.dataModel.setTypeFilter(currentText)
+                        } else if (currentText === "humidity") {
+                            tempSeries.visible = false
+                            pressSeries.visible = false
+                            humSeries.visible = true
                             controller.dataModel.setTypeFilter(currentText)
                         }
                     }
@@ -847,20 +899,34 @@ ApplicationWindow {
                 }
             }
         }
-    }
+}
 
     Connections {
         target: controller
 
         function onClearGraphRequested() {
+
+            // Очищаем серии графика
+            tempSeries.clear()
+            pressSeries.clear()
+            humSeries.clear()
+
+            //Очищаем биржевой график
             candlestickSeries.clear()
             movingAverageSeries.clear()
+
+            // Сбрасываем оси
+            weatherAxisX.min = 0
+            weatherAxisX.max = 60
+
             axisX.min = 0
             axisX.max = 60
             axisY.min = 0
             axisY.max = 100
             console.log("Graph cleared")
         }
+
+
 
         function onCandleDataReceived(open, high, low, close, timestamp) {
             console.log("Candle received:", timestamp, open, high, low, close)
@@ -900,4 +966,5 @@ ApplicationWindow {
             }
         }
     }
+
 }

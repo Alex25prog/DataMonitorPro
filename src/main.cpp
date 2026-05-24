@@ -19,12 +19,12 @@ int main(int argc, char *argv[])
     //Регистрируем GraphWidget для QML
     //qmlRegisterType<GraphWidget>("DataMonitorPro", 1, 0, "GraphWidget");
     
-    // Создаем контроллер
-    MainController controller(&engine);
+    // Создаем контроллер в HEAP
+    MainController* controller = new MainController(&engine);
     
 
     //регистрируем контроллер в QML под именем "controller"
-    engine.rootContext()->setContextProperty("controller", &controller);
+    engine.rootContext()->setContextProperty("controller", controller);
 
     // Загружаем QML — путь должен совпадать с URI
     const QUrl url("qrc:/DataMonitorPro/qml/main.qml");

@@ -33,14 +33,6 @@
     });
 
 
-
-    // Инициализируем базу данных(Берем пароль БД из переменного окружения)
-    //QString dbPassword = qgetenv("DB_PASSWORD");
-    //if (dbPassword.isEmpty()) {
-        //qDebug() << "WARNING: DB_PASSWORD enviroment variable not set! Using default (not recommended)";
-        //dbPassword = ""; // Можно оставить пустым
-    //}
-
     //Загружаем API ключ через SecretManager
     QString apiKey = SecretManager::getWeatherApiKey();
     if (!apiKey.isEmpty()) {
@@ -86,12 +78,14 @@
     qmlRegisterUncreatableType<DataModel>("com.datamonitor", 1, 0, "DataModel", "Cannot create DataModel in QML");
 
     // Делаем контроллер доступным из QML
-    m_engine->rootContext()->setContextProperty("controller", this);
+    //m_engine->rootContext()->setContextProperty("controller", this);
 }
 
 //Деструктор
 MainController::~MainController()
 {
+    qDebug() << "===MainController destructor SRART ===";
+
     stopServer();
 
 }
@@ -132,11 +126,44 @@ void MainController::onDataProcessed(const DataPoint& point)
 
 void MainController::loadHistory(const QDateTime& from, const QDateTime& to)
 {
-    QList<DataPoint> history = m_database->loadDataPoints(from, to);
-    m_dataModel->clear();
-    for (const DataPoint& point : history) {
-        m_dataModel->addDataPoint(point);
+    qDebug() << "Loading history from" << from << "to" << to;
+
+    if (!m_database) {
+        qDebug() << "Databse is null!";
+        return;
     }
+
+    QList<DataPoint> history = m_database->loadDataPoints(from, to);
+    qDebug() << "Loaded" << history.size() << "points from database";
+
+    if (history.isEmpty()) {
+        qDebug() << "History is empty";
+        return;
+    }
+
+
+    // Очищаем текущие данные
+    if (m_dataModel) {
+        m_dataModel->clear();
+    }
+    // Сбрасываем счетчик точек
+     m_pointIndex = 0;
+
+    // Очищаем график
+    emit clearGraphRequested();
+
+
+    for (const DataPoint& point : history) {
+        if (m_dataModel) {
+            m_dataModel->addDataPoint(point);
+        }
+
+        // Добавляем точку на график
+        updateChart(point);
+    }
+
+    qDebug() << "History loaded successfully";
+
 }
 
 DataPoint MainController::parseData(const QString& data)
@@ -164,25 +191,15 @@ DataPoint MainController::parseData(const QString& data)
 void MainController::updateChart(const DataPoint& point)
 {
 
-    static int pointIndex = 0; // добавляем счетчик точек
+    //static int pointIndex = 0; // добавляем счетчик точек
 
     double value = point.value(); // Без нормализации
 
-    //Нормализация значений для отображения на одном графике
-    //if (point.type() == "temperature") {
-        // Температура: от -50 до +50 (диапозон 100)
-        //value = (point.value() + 30) * 100 / 70; // -50 -> 0, +50 -> 90
-            //}else if (point.type() == "pressure") {
-                // давление: 950 до 1050 (диапазон 100)
-               // value = (point.value() - 950) * 100 / 60; // 950 -> 0, 1050 -> 90
-           // } else if (point.type() == "humidity") {
-                // Влажность: 0-100
-               // value = point.value(); // 0 -> 0, 100 -> 90
-   // }
+
         qDebug() << "updateChart called:" << point.type() << "value=" << value;
         //Оставляем сигнал для QML
-        emit chartDataReceived(pointIndex, value, point.type());
-        pointIndex++; // 0, 1, 2, 3...
+        emit chartDataReceived(m_pointIndex, value, point.type());
+        m_pointIndex++; // 0, 1, 2, 3...
 }
 
 void MainController::onWeatherDataReceived(const QString& type, double value, const QString& unit)
@@ -281,6 +298,7 @@ void MainController::clearData()//метод для очистки данных(
 {
     //Очищаем модель данных (таблицу)
     m_dataModel->clear();
+    m_pointIndex = 0;
 
     //Отправляем сигнал для очистки графика в QML
     emit clearGraphRequested();

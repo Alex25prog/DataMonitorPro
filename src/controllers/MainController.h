@@ -88,6 +88,7 @@ private:
     bool m_weatherRunning = false;
     bool m_citySelected = false;
     QList<CandleData> m_candles;
+    int m_pointIndex = 0;
 
 };
 
