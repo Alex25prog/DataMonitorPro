@@ -6,11 +6,64 @@ import QtQuick.Layouts
 
 ApplicationWindow {
     id: root
+
+    Component.onCompleted: Qt.callLater(updateUIText)
+
     width: 1400
     height: 800
     visible: true
     title: qsTr("DataMonitor Pro")
     background: Rectangle { color: "#1e1e1e" }
+
+    // Переключатель языка
+    property bool isRussian: false
+
+    function translateText(text) {
+        var dict = {
+            "Start Server": "Запустить сервер",
+            "Stop Server": "Остановить сервер",
+                        "Clear Data": "Очистить данные",
+                        "Load History (Last 24h)": "Загрузить историю (24ч)",
+                        "Export CSV": "Экспорт CSV",
+                        "Export PDF": "Экспорт PDF",
+                        "Weather": "Погода",
+                        "Birzha": "Биржа",
+                        "Start Weather": "Запустить погоду",
+                        "Stop Weather": "Остановить погоду",
+                        "Select Country": "Выберите страну",
+                        "Select City": "Выберите город",
+                        "Filter by type:": "Фильтр по типу:",
+                        "All": "Все",
+                        "temperature": "температура",
+                        "pressure": "давление",
+                        "humidity": "влажность",
+                        "Total points:": "Всего точек:",
+                        "Server:": "Сервер:",
+                        "Active": "Активен",
+                        "Inactive": "Неактивен",
+                        "Total points:": "Всего точек:",
+                        "Database: PostgreSQL": "База данных: PostgreSQL",
+                        "Weather:": "Погода:",
+                        "● Server Running": "● Сервер запущен",
+                        "○ Server Stopped": "○ Сервер остановлен",
+                        "Timestamp": "Время",
+                        "Type": "Тип",
+                        "Value": "Значение",
+                        "Unit": "Единица",
+                        "Details": "Детали",
+                        "Temperature": "Температура",
+                        "Pressure": "Давление",
+                        "Humidity": "Влажность",
+                        "City:": "Город:",
+                        "Moscow": "Москва",
+                        "Saint Petersburg": "Санкт-Петербург",
+                        "Novosibirsk": "Новосибирск",
+                        "Kazan": "Казань",
+                        "Voronezh": "Воронеж",
+                        "Yekaterinburg": "Екатеринбург"
+        }
+        return isRussian && dict[text] ? dict[text] : text
+    }
 
     // Переменные для переключения графиков
     property bool showWeatherGraph: true
@@ -41,6 +94,67 @@ ApplicationWindow {
         }
     }
 
+    // Функция обновления текстов
+    function updateUIText() {
+        // Обновляем кнопки
+        serverButton.text = controller.isServerRunning ? translateText("Stop Server") : translateText("Start Server")
+        weatherButton.text = controller.isWeatherRunning ? translateText("Stop Weather") : translateText("Start Weather")
+
+        // Clear Data кнопка
+        clearDataButton.text = translateText("Clear Data")
+
+        // Load History кнопка
+        loadHistoryButton.text = translateText("Load History (Last 24h)")
+
+        // Export CSV
+        exportCsvButton.text = translateText("Export CSV")
+
+        // Export PDF
+        exportPdfButton.text = translateText("Export PDF")
+
+        // Кнопки переключения графиков
+        weatherToggleButton.text = translateText("Weather")
+        birzhaToggleButton.text = translateText("Birzha")
+
+        // Кнопка руссификатора
+        langButton.text = isRussian ? "ENG" : "РУС"
+
+        // Обновляем заголовки таблицы
+        //if (headerTimestamp) headerTimestamp.text = translateText("Timestamp")
+        //if (headerType) headerType.text = translateText("Type")
+        //if (headerValue) headerValue.text = translateText("Value")
+        //if (headerUnit) headerUnit.text = translateText("Unit")
+        //if (headerDetails) headerDetails.text = translateText("Details")
+
+        // Обновляем легенду графика
+        tempSeries.name = translateText("Temperature")
+        pressSeries.name = translateText("Pressure")
+        humSeries.name = translateText("Humidity")
+
+        // Обновлеям статусы в нижней панели
+          if (statusServer) statusServer.text = translateText("Server:")+ " " + (controller.isServerRunning ? translateText("Active") :
+        translateText("Inactive"))
+          if (statusWeather) statusWeather.text = translateText("Weather:")+ " " + (controller.isWeatherRunning ? translateText("Active") :
+        translateText("Inactive"))
+        if (serverStatusLabel) serverStatusLabel.text = controller.isServerRunning ? translateText("● Server Running")
+        : translateText("○ Server Stopped")
+
+        // Обновляем фильтры
+        var currentFilter = typeFilter.currentText
+        typeFilter.model = [translateText("All"), translateText("temperature"), translateText("pressure"), translateText("humidity")]
+        for (var i = 0; i < typeFilter.model.length; i++) {
+            if (typeFilter.model[i] === currentFilter) {
+                typeFilter.currentIndex = i
+                break
+            }
+        }
+
+        // Обновляем выбор страны и города
+        updateCityList()
+
+    }
+
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 10
@@ -59,7 +173,7 @@ ApplicationWindow {
             // Start/Stop Server кнопка
             Button {
                 id: serverButton
-                implicitWidth: 85
+                implicitWidth: Math.max(85, contentItem.implicitWidth + 5)
                 implicitHeight: 45
 
                 background: Rectangle {
@@ -70,7 +184,7 @@ ApplicationWindow {
                 }
 
                 contentItem: Text {
-                        text: controller.isServerRunning ? "Stop Server" : "Start Server"
+                        text: serverButton.text
                         color: "black"
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
@@ -88,6 +202,7 @@ ApplicationWindow {
             }
 
             Text {
+                id: serverStatusLabel
                 text: controller.isServerRunning ? "● Server Running" : "○ Server Stopped"
                 color: controller.isServerRunning ? "#4caf50" : "#f44336"
                 font.pixelSize: 9
@@ -96,8 +211,10 @@ ApplicationWindow {
     }
             // Clear Data кнопка
             Button {
+                id: clearDataButton
                 text: "Clear Data"
-                implicitWidth: 85
+                implicitWidth: contentItem.implicitWidth + 5
+                //implicitWidth: 85
                 background: Rectangle {
                     color: "#e8e9ef"
                     radius: 8
@@ -105,7 +222,7 @@ ApplicationWindow {
 
                 }
                 contentItem: Text {
-                    text: "Clear Data"
+                    text: clearDataButton.text
                     color: "black"
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
@@ -118,15 +235,16 @@ ApplicationWindow {
 
             // Load History кнопка
             Button {
+                id: loadHistoryButton
                 text: "Load History (Last 24h)"
-                implicitWidth: 140
+                implicitWidth: contentItem.implicitWidth + 5
                 background: Rectangle {
                     color: "#e8e9ef"
                     radius: 8
                     opacity: parent.pressed ? 0.7 : 1.0
                 }
                 contentItem: Text {
-                    text: "Load History (Last 24h)"
+                    text: loadHistoryButton.text
                     color: "black"
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignHCenter
@@ -141,6 +259,7 @@ ApplicationWindow {
 
             // Export CSV
             Button {
+                id: exportCsvButton
                 text: "Export CSV"
                 implicitWidth: 85
                 background: Rectangle {
@@ -149,7 +268,7 @@ ApplicationWindow {
                     opacity: parent.pressed ? 0.7 : 1.0
                 }
                 contentItem: Text {
-                    text: "Export CSV"
+                    text: exportCsvButton.text
                     color: "black"
                     font.bold: true
                     horizontalAlignment: Text.AlignHCenter  //текст по центру
@@ -161,6 +280,7 @@ ApplicationWindow {
 
             // Export PDF
             Button {
+                id: exportPdfButton
                 text: "Export PDF"
                 implicitWidth: 85
                 background: Rectangle {
@@ -169,7 +289,7 @@ ApplicationWindow {
                     opacity: parent.pressed ? 0.7 : 1.0
                 }
                 contentItem: Text {
-                    text: "Export PDF"
+                    text: exportPdfButton.text
                     color: "black"
                     font.bold: true
                     horizontalAlignment: Text.AlignHCenter  // текст по центру
@@ -180,6 +300,7 @@ ApplicationWindow {
 
             // Кнопки переключения графиков
             Button {
+                id: weatherToggleButton
                 text: "Weather"
                 implicitWidth: 85
                 background: Rectangle {
@@ -187,7 +308,7 @@ ApplicationWindow {
                     radius: 8
                 }
                 contentItem: Text {
-                   text: "Weather"
+                   text:  weatherToggleButton.text
                    color: showWeatherGraph ? "white" : "black"
                    font.bold: true
                    horizontalAlignment: Text.Center
@@ -201,6 +322,7 @@ ApplicationWindow {
             }
             // Кнопка переключения биржи
             Button {
+                id: birzhaToggleButton
                 text: "Birzha"
                 implicitWidth: 85
                 background: Rectangle {
@@ -208,7 +330,7 @@ ApplicationWindow {
                     radius: 8
                 }
                 contentItem: Text {
-                    text: "Birzha"
+                    text: birzhaToggleButton.text
                     color: showTradingGraph ? "white" : "black"
                     font.bold: true
                     horizontalAlignment: Text.Center
@@ -216,6 +338,30 @@ ApplicationWindow {
                 onClicked: {
                     showWeatherGraph = false
                     showTradingGraph = true
+                }
+            }
+
+            // Кнопка руссификатор
+            Button {
+                id: langButton
+                text: isRussian ? "ENG" : "РУС"
+                implicitWidth: 50
+                implicitHeight: 35
+                background: Rectangle {
+                    color: "#e8e9ef"
+                    radius: 8
+                }
+                contentItem: Text {
+                    text: parent.text
+                    color: "black"
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignHCenter
+                }
+                onClicked: {
+                    isRussian = !isRussian
+                    // обновляем текст кнопок и загловков
+                    updateUIText()
                 }
             }
 
@@ -263,7 +409,7 @@ ApplicationWindow {
 
                         contentItem: Text {
                             text: countrySelect.currentText
-                            color: currentIndex === 0 ? "#666666" : "#2c3e50"
+                            color: countrySelect.currentIndex === 0 ? "#666666" : "#2c3e50"
                             font.bold: true
                             horizontalAlignment: Text.AlignLeft
                             verticalAlignment: Text.AlignHCenter
@@ -356,7 +502,7 @@ ApplicationWindow {
 
                         contentItem: Text {
                             text: citySelect.currentText
-                            color: currentIndex === 0 ? "#666666" : "#2c3e50"
+                            color: citySelect.currentIndex === 0 ? "#666666" : "#2c3e50"
                             font.pixelSize: 12
                             font.bold: true
                             horizontalAlignment: Text.AlignLeft
@@ -486,7 +632,7 @@ ApplicationWindow {
                 spacing: 10
 
                 Label {
-                    text: "Filter by type:"
+                    text: translateText("Filter by type:")
                     color: "#2c3e50"
                     font.bold: true
                     font.pixelSize: 12
@@ -509,7 +655,7 @@ ApplicationWindow {
 
                     contentItem: Text {
                         text: typeFilter.currentText
-                        color: currentIndex === 0 ? "#666666" : "#2c3e50"
+                        color: typeFilter.currentIndex === 0 ? "#666666" : "#2c3e50"
                         font.pixelSize: 12
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
@@ -847,11 +993,16 @@ ApplicationWindow {
                             anchors.margins: 5
                             spacing: 10
 
-                            Rectangle { width: 180; height: 30; color: "#3d3d3d"; radius: 3; Text { text: "Timestamp"; anchors.centerIn: parent; color: "white" } }
-                            Rectangle { width: 100; height: 30; color: "#3d3d3d"; radius: 3; Text { text: "Type"; anchors.centerIn: parent; color: "white" } }
-                            Rectangle { width: 100; height: 30; color: "#3d3d3d"; radius: 3; Text { text: "Value"; anchors.centerIn: parent; color: "white" } }
-                            Rectangle { width: 80; height: 30; color: "#3d3d3d"; radius: 3; Text { text: "Unit"; anchors.centerIn: parent; color: "white" } }
-                            Rectangle { width: 700; height: 30; color: "#3d3d3d"; radius: 3; Text { text: "Details"; anchors.centerIn: parent; color: "white" } }
+                            Rectangle { width: 180; height: 30; color: "#3d3d3d"; radius: 3; Text {id: headerTimestamp; text:
+                                                    translateText("Timestamp"); anchors.centerIn: parent; color: "white" } }
+                            Rectangle { width: 100; height: 30; color: "#3d3d3d"; radius: 3; Text {id: headerType; text:
+                                                    translateText("Type"); anchors.centerIn: parent; color: "white" } }
+                            Rectangle { width: 100; height: 30; color: "#3d3d3d"; radius: 3; Text {id: headerValue; text:
+                                                    translateText("Value"); anchors.centerIn: parent; color: "white" } }
+                            Rectangle { width: 80; height: 30; color: "#3d3d3d"; radius: 3; Text {id: headerUnit; text:
+                                                    translateText("Unit"); anchors.centerIn: parent; color: "white" } }
+                            Rectangle { width: 700; height: 30; color: "#3d3d3d"; radius: 3; Text {id: headerDetails; text:
+                                                    translateText("Details"); anchors.centerIn: parent; color: "white" } }
                         }
                     }
 
@@ -887,14 +1038,24 @@ ApplicationWindow {
                 anchors.fill: parent
                 anchors.margins: 10
 
-                Label { text: " Total points: " + controller.dataModel.count; color: "#B22222" }
+                Label { text: translateText("Total points:")+ " " + controller.dataModel.count;
+                                                                             color: "#B22222" }
                 Label { text: "|" }
-                Label { text: "Server: " + (controller.isServerRunning ? "Active" : "Inactive"); color: "#B22222" }
+
+                Label {
+                    id: statusServer
+                    text: translateText("Server:")+ " " + (controller.isServerRunning
+                                                           ? translateText("Active")
+                                                           : translateText("Inactive")); color: "#B22222" }
                 Label { text: "|" }
-                Label { text: " Database: PostgreSQL"; color: "#B22222" }
+                Label { text: translateText(" Database: PostgreSQL"); color: "#B22222" }
                 Label { text: "|" }
                 Label {
-                    text: "Weather: " + (controller.isWeatherRunning ? "Active" : "Inactive")
+                    id: statusWeather
+                    text: translateText("Weather:")+ " " +
+                          (controller.isWeatherRunning
+                           ? translateText("Active")
+                           : translateText("Inactive"))
                     color: controller.isWeatherRunning ? "#4caf50" : "#f44336"
                 }
             }

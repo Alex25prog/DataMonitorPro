@@ -54,9 +54,10 @@ QHash<int, QByteArray> DataModel::roleNames() const
 
 void DataModel::addDataPoint(const DataPoint& point)
 {
-    beginInsertRows(QModelIndex(), m_data.size(), m_data.size());
+    // Добавляем в основную модель
+    //beginInsertRows(QModelIndex(), m_data.size(), m_data.size());
     m_data.append(point);
-    endInsertRows();
+    //endInsertRows();
     
     // Если точка проходит фильтры, добавляем в отфильтрованный список
     if (passesFilters(point)) {
