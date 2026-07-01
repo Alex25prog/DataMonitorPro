@@ -2,12 +2,10 @@ import QtQuick
 import QtCharts
 import QtQuick.Controls
 import QtQuick.Layouts
-
+import QtQuick.Controls 2.15
 
 ApplicationWindow {
     id: root
-
-    Component.onCompleted: Qt.callLater(updateUIText)
 
     width: 1400
     height: 800
@@ -15,145 +13,146 @@ ApplicationWindow {
     title: qsTr("DataMonitor Pro")
     background: Rectangle { color: "#1e1e1e" }
 
-    // Переключатель языка
-    property bool isRussian: false
-
-    function translateText(text) {
-        var dict = {
-            "Start Server": "Запустить сервер",
-            "Stop Server": "Остановить сервер",
-                        "Clear Data": "Очистить данные",
-                        "Load History (Last 24h)": "Загрузить историю (24ч)",
-                        "Export CSV": "Экспорт CSV",
-                        "Export PDF": "Экспорт PDF",
-                        "Weather": "Погода",
-                        "Birzha": "Биржа",
-                        "Start Weather": "Запустить погоду",
-                        "Stop Weather": "Остановить погоду",
-                        "Select Country": "Выберите страну",
-                        "Select City": "Выберите город",
-                        "Filter by type:": "Фильтр по типу:",
-                        "All": "Все",
-                        "temperature": "температура",
-                        "pressure": "давление",
-                        "humidity": "влажность",
-                        "Total points:": "Всего точек:",
-                        "Server:": "Сервер:",
-                        "Active": "Активен",
-                        "Inactive": "Неактивен",
-                        "Total points:": "Всего точек:",
-                        "Database: PostgreSQL": "База данных: PostgreSQL",
-                        "Weather:": "Погода:",
-                        "● Server Running": "● Сервер запущен",
-                        "○ Server Stopped": "○ Сервер остановлен",
-                        "Timestamp": "Время",
-                        "Type": "Тип",
-                        "Value": "Значение",
-                        "Unit": "Единица",
-                        "Details": "Детали",
-                        "Temperature": "Температура",
-                        "Pressure": "Давление",
-                        "Humidity": "Влажность",
-                        "City:": "Город:",
-                        "Moscow": "Москва",
-                        "Saint Petersburg": "Санкт-Петербург",
-                        "Novosibirsk": "Новосибирск",
-                        "Kazan": "Казань",
-                        "Voronezh": "Воронеж",
-                        "Yekaterinburg": "Екатеринбург"
-        }
-        return isRussian && dict[text] ? dict[text] : text
-    }
+    // Для сохранения состояния перевода
+    property string currentLocale: "en"
 
     // Переменные для переключения графиков
     property bool showWeatherGraph: true
     property bool showTradingGraph: false
 
-    // Функция для обновления списка городов
-    function updateCityList() {
-        var cities = {
-            "Russia": ["Select City", "Moscow", "Saint Petersburg", "Novosibirsk", "Kazan", "Yekaterinburg", "Voronezh"],
-            "USA": ["Select City", "New York", "Los Angeles", "Chicago", "Houston", "Miami"],
-            "Germany": ["Select City", "Berlin", "Munich", "Hamburg", "Cologne", "Frankfurt"],
-            "France": ["Select City", "Paris", "Marseille", "Lyon", "Toulouse", "Nice"],
-            "UK": ["Select City", "London", "Manchester", "Birmingham", "Liverpool", "Edinburgh"],
-            "Japan": ["Select City", "Tokyo", "Osaka", "Kyoto", "Yokohama", "Nagoya"]
-        }
+    // Обработчик смены языка
+    onCurrentLocaleChanged: {
+        // Запоминает текущие значения перед перерисовкой
+        var savedCountryIndex = countrySelect.currentIndex;
+        var savedCityValue = citySelect.currentValue;
 
-        var selectedCountry = countrySelect.currentText
-        var cityList = cities[selectedCountry]
+        // Принудительно обновляем список стран, чтобы сработал qsTr()
+        var countryModel = []
+        if (currentLocale === "ru") {
+        countryModel = [
+                    { text: "▼ Выберите страну", value: 0 },
+                    { text: "Россия", value: 1 },
+                    { text: "США", value: 2 },
+                    { text: "Германия", value: 3 },
+                    { text: "Франция", value: 4 },
+                    { text: "Великобритания", value: 5 },
+                    { text: "Япония", value: 6 }
+                 ];
+         } else {
 
-        if (cityList) {
-            citySelect.model = cityList
-            citySelect.currentIndex = 0
-            controller.setCity("")
-        } else {
-            citySelect.model = ["Select City"]
-            citySelect.currentIndex = 0
-            controller.setCity("")
+
+           countryModel = [
+                    { text: "▼ Select Country", value: 0 },
+                    { text: "Russia", value: 1 },
+                    { text: "USA", value: 2 },
+                    { text: "Germany", value: 3 },
+                    { text: "France", value: 4 },
+                    { text: "UK", value: 5 },
+                    { text: "Japan", value: 6 }
+                ];
         }
+        countrySelect.model = countryModel;
+        // Возврящаем выбранную страну на место
+        countrySelect.currentIndex = savedCountryIndex;
+
+        // Принудительно обновляем отображение
+        //countrySelect.currentText = countrySelect.model[savedCountryIndex].text;
+
+        // Перерисовываем города и восстанавливаем выбранный
+        updateCityList(savedCityValue);
     }
 
-    // Функция обновления текстов
-    function updateUIText() {
-        // Обновляем кнопки
-        serverButton.text = controller.isServerRunning ? translateText("Stop Server") : translateText("Start Server")
-        weatherButton.text = controller.isWeatherRunning ? translateText("Stop Weather") : translateText("Start Weather")
+    // Функция для обновления списка городов
+    function updateCityList(savedCityValue = "") {
+        var cityModel = [];
+        var isRussian = (currentLocale === "ru");
 
-        // Clear Data кнопка
-        clearDataButton.text = translateText("Clear Data")
+        // Базовый элемент "Выберите город"
+        cityModel.push({
+            text: isRussian ? "▼ Выберите город" : "▼ Select City",
+            value: ""
+        });
 
-        // Load History кнопка
-        loadHistoryButton.text = translateText("Load History (Last 24h)")
+        switch (countrySelect.currentIndex) {
+            case 1: // Russia
+                cityModel.push(
+                    { text: isRussian ? "Москва" : "Moscow", value: "Moscow" },
+                    { text: isRussian ? "Санкт-Петербург" : "Saint Petersburg", value: "Saint Petersburg" },
+                    { text: isRussian ? "Новосибирск" : "Novosibirsk", value: "Novosibirsk" },
+                    { text: isRussian ? "Казань" : "Kazan", value: "Kazan" },
+                    { text: isRussian ? "Екатеринбург" : "Yekaterinburg", value: "Yekaterinburg" },
+                    { text: isRussian ? "Воронеж" : "Voronezh", value: "Voronezh" }
+                );
 
-        // Export CSV
-        exportCsvButton.text = translateText("Export CSV")
+                break;
+            case 2: // USA
+                cityModel.push(
+                    //{ text: qsTr("▼ Select City", value: "" },
+                    { text: isRussian ? "Нью Йорк" : "New York", value: "New York" },
+                    { text: isRussian ? "Лос Анджелес" : "Los Angeles" , value: "Los Angeles" },
+                    { text: isRussian ? "Чикаго" : "Chicago" , value: "Chicago" },
+                    { text: isRussian ? "Хьюстон" : "Houston" , value: "Houston" },
+                    { text: isRussian ? "Майами" : "Miami" , value: "Miami" }
+                );
+                break;
+            case 3: // Germany
+                cityModel.push(
+                    //{ text: qsTr("▼ Select City"), value: "" },
+                    { text: isRussian ? "Берлин" : "Berlin", value: "Berlin" },
+                    { text: isRussian ? "Мюнхен" : "Munich", value: "Munich" },
+                    { text: isRussian ? "Гамбург" : "Hamburg", value: "Hamburg" },
+                    { text: isRussian ? "Кёльн" : "Cologne", value: "Cologne" },
+                    { text: isRussian ? "Франкфурт" : "Frankfurt", value: "Frankfurt" }
+                );
+                break;
+            case 4: // France
+                cityModel.push(
+                    //{ text: qsTr("▼ Select City"), value: "" },
+                    { text: isRussian ? "Париж" : "Paris", value: "Paris" },
+                    { text: isRussian ? "Марсель" : "Marseille", value: "Marseille" },
+                    { text: isRussian ? "Лион" : "Lyon", value: "Lyon" },
+                    { text: isRussian ? "Тулуза" : "Toulouse", value: "Toulouse" },
+                    { text: isRussian ? "Ницца" : "Nice", value: "Nice" }
+                );
+                break;
+            case 5: // UK
+                cityModel.push(
+                    //{ text: qsTr("▼ Select City"), value: "" },
+                    { text: isRussian ? "Лондон" : "London", value: "London" },
+                    { text: isRussian ? "Манчестер" : "Manchester", value: "Manchester" },
+                    { text: isRussian ? "Бирмингем" : "Birmingham", value: "Birmingham" },
+                    { text: isRussian ? "Ливерпуль" : "Liverpool", value: "Liverpool" },
+                    { text: isRussian ? "Эдинбург" : "Edinburgh", value: "Edinburgh" }
+                );
+                break;
+            case 6: // Japan
+                cityModel.push(
+                    //{ text: qsTr("▼ Select City"), value: "" },
+                    { text: isRussian ? "Токио" : "Tokyo", value: "Tokyo" },
+                    { text: isRussian ? "Осака" : "Osaka", value: "Osaka" },
+                    { text: isRussian ? "Киото" : "Kyoto", value: "Kyoto" },
+                    { text: isRussian ? "Иокогама" : "Yokohama", value: "Yokohama" },
+                    { text: isRussian ? "Нагоя" : "Nagoya", value: "Nagoya" }
+                );
+                break;
+            default:
+                cityModel = [{ text: isRussian ? "▼ Выберите город" : "▼ Select City", value: "" }]
+        }
 
-        // Export PDF
-        exportPdfButton.text = translateText("Export PDF")
-
-        // Кнопки переключения графиков
-        weatherToggleButton.text = translateText("Weather")
-        birzhaToggleButton.text = translateText("Birzha")
-
-        // Кнопка руссификатора
-        langButton.text = isRussian ? "ENG" : "РУС"
-
-        // Обновляем заголовки таблицы
-        //if (headerTimestamp) headerTimestamp.text = translateText("Timestamp")
-        //if (headerType) headerType.text = translateText("Type")
-        //if (headerValue) headerValue.text = translateText("Value")
-        //if (headerUnit) headerUnit.text = translateText("Unit")
-        //if (headerDetails) headerDetails.text = translateText("Details")
-
-        // Обновляем легенду графика
-        tempSeries.name = translateText("Temperature")
-        pressSeries.name = translateText("Pressure")
-        humSeries.name = translateText("Humidity")
-
-        // Обновлеям статусы в нижней панели
-          if (statusServer) statusServer.text = translateText("Server:")+ " " + (controller.isServerRunning ? translateText("Active") :
-        translateText("Inactive"))
-          if (statusWeather) statusWeather.text = translateText("Weather:")+ " " + (controller.isWeatherRunning ? translateText("Active") :
-        translateText("Inactive"))
-        if (serverStatusLabel) serverStatusLabel.text = controller.isServerRunning ? translateText("● Server Running")
-        : translateText("○ Server Stopped")
-
-        // Обновляем фильтры
-        var currentFilter = typeFilter.currentText
-        typeFilter.model = [translateText("All"), translateText("temperature"), translateText("pressure"), translateText("humidity")]
-        for (var i = 0; i < typeFilter.model.length; i++) {
-            if (typeFilter.model[i] === currentFilter) {
-                typeFilter.currentIndex = i
-                break
+        citySelect.model = cityModel
+        // Если нам передали сохраненный город (режим смены языка) ищем и восстанавливаем
+        if (savedCityValue !== "") {
+            for (var i = 0; i < cityModel.length; i++) {
+                if (cityModel[i].value === savedCityValue) {
+                    citySelect.currentIndex = i;
+                    return; // Успешно восстановили индекс, выходим
+                }
             }
         }
-
-        // Обновляем выбор страны и города
-        updateCityList()
-
+        // Если это обычный клик пользователя по новой стране - сбрасываем город
+        citySelect.currentIndex = 0
+        controller.setCity("")
     }
-
 
     ColumnLayout {
         anchors.fill: parent
@@ -165,61 +164,57 @@ ApplicationWindow {
             spacing: 5
 
             Column {
-                Layout.alignment: Qt.AlignVCenter // Выравниваем относительно других кнопок
-                //Layout.topMargin: 14 // Верхний отступ, чтобы сделать кнопку ниже
+                Layout.alignment: Qt.AlignVCenter
                 spacing: 2
-                //Layout.alignment: Qt.AlignBottom
 
-            // Start/Stop Server кнопка
-            Button {
-                id: serverButton
-                implicitWidth: Math.max(85, contentItem.implicitWidth + 5)
-                implicitHeight: 45
+                // Start/Stop Server кнопка
+                Button {
+                    id: serverButton
+                    implicitWidth: Math.max(85, contentItem.implicitWidth + 5)
+                    implicitHeight: 45
 
-                background: Rectangle {
-                    color: controller.isServerRunning ? "#2e7d32" : "#1565c0"
-                    radius: 15
-                    opacity: parent.pressed ? 0.7 : 1.0
+                    background: Rectangle {
+                        color: controller.isServerRunning ? "#2e7d32" : "#1565c0"
+                        radius: 15
+                        opacity: parent.pressed ? 0.7 : 1.0
+                    }
 
-                }
-
-                contentItem: Text {
-                        text: serverButton.text
+                    contentItem: Text {
+                        text: controller.isServerRunning ? qsTr("Stop Server") : qsTr("Start Server")
                         color: "black"
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignHCenter
-
+                        verticalAlignment: Text.AlignVCenter
+                        anchors.fill: parent
                     }
 
-                onClicked: {
-                    if (controller.isServerRunning) {
-                        controller.stopServer()
-                    } else {
-                        controller.startServer(8080)
+                    onClicked: {
+                        if (controller.isServerRunning) {
+                            controller.stopServer()
+                        } else {
+                            controller.startServer(8080)
+                        }
                     }
+                }
+
+                Text {
+                    id: serverStatusLabel
+                    text: controller.isServerRunning ? qsTr("● Server Running") : qsTr("○ Server Stopped")
+                    color: controller.isServerRunning ? "#4caf50" : "#f44336"
+                    font.pixelSize: 9
+                    horizontalAlignment: Text.AlignHCenter
                 }
             }
 
-            Text {
-                id: serverStatusLabel
-                text: controller.isServerRunning ? "● Server Running" : "○ Server Stopped"
-                color: controller.isServerRunning ? "#4caf50" : "#f44336"
-                font.pixelSize: 9
-                horizontalAlignment: Text.AlignHCenter
-        }
-    }
             // Clear Data кнопка
             Button {
                 id: clearDataButton
-                text: "Clear Data"
+                text: qsTr("Clear Data")
                 implicitWidth: contentItem.implicitWidth + 5
-                //implicitWidth: 85
                 background: Rectangle {
                     color: "#e8e9ef"
                     radius: 8
                     opacity: parent.pressed ? 0.7 : 1.0
-
                 }
                 contentItem: Text {
                     text: clearDataButton.text
@@ -228,15 +223,13 @@ ApplicationWindow {
                     verticalAlignment: Text.AlignVCenter
                     font.bold: true
                 }
-                onClicked: {
-                    controller.clearData()
-                }
+                onClicked: controller.clearData()
             }
 
             // Load History кнопка
             Button {
                 id: loadHistoryButton
-                text: "Load History (Last 24h)"
+                text: qsTr("Load History (Last 24h)")
                 implicitWidth: contentItem.implicitWidth + 5
                 background: Rectangle {
                     color: "#e8e9ef"
@@ -260,7 +253,7 @@ ApplicationWindow {
             // Export CSV
             Button {
                 id: exportCsvButton
-                text: "Export CSV"
+                text: qsTr("Export CSV")
                 implicitWidth: 85
                 background: Rectangle {
                     color: "#e8e9ef"
@@ -271,9 +264,8 @@ ApplicationWindow {
                     text: exportCsvButton.text
                     color: "black"
                     font.bold: true
-                    horizontalAlignment: Text.AlignHCenter  //текст по центру
+                    horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
-
                 }
                 onClicked: controller.exportToCSV()
             }
@@ -281,7 +273,7 @@ ApplicationWindow {
             // Export PDF
             Button {
                 id: exportPdfButton
-                text: "Export PDF"
+                text: qsTr("Export PDF")
                 implicitWidth: 85
                 background: Rectangle {
                     color: "#e8e9ef"
@@ -292,7 +284,7 @@ ApplicationWindow {
                     text: exportPdfButton.text
                     color: "black"
                     font.bold: true
-                    horizontalAlignment: Text.AlignHCenter  // текст по центру
+                    horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
                 onClicked: controller.exportToPDF()
@@ -301,29 +293,27 @@ ApplicationWindow {
             // Кнопки переключения графиков
             Button {
                 id: weatherToggleButton
-                text: "Weather"
+                text: qsTr("Weather")
                 implicitWidth: 85
                 background: Rectangle {
                     color: showWeatherGraph ? "#4caf50" : "#e8e9ef"
                     radius: 8
                 }
                 contentItem: Text {
-                   text:  weatherToggleButton.text
+                   text: weatherToggleButton.text
                    color: showWeatherGraph ? "white" : "black"
                    font.bold: true
                    horizontalAlignment: Text.Center
-
                 }
-
                 onClicked: {
                     showWeatherGraph = true
                     showTradingGraph = false
                 }
             }
-            // Кнопка переключения биржи
+
             Button {
                 id: birzhaToggleButton
-                text: "Birzha"
+                text: qsTr("Birzha")
                 implicitWidth: 85
                 background: Rectangle {
                     color: showTradingGraph ? "#4caf50" : "#e8e9ef"
@@ -341,33 +331,34 @@ ApplicationWindow {
                 }
             }
 
-            // Кнопка руссификатор
-            Button {
-                id: langButton
-                text: isRussian ? "ENG" : "РУС"
-                implicitWidth: 50
-                implicitHeight: 35
+            // Кнопка переключения языка
+            ComboBox {
+                id: langSelector
+                model: [
+                    { text: "EN", code: "en" },
+                    { text: "RU", code: "ru" }
+                ]
+                textRole: "text"
+                valueRole: "code"
+                implicitWidth: 80
+                implicitHeight: 30
+                currentIndex: (currentLocale === "ru") ? 1 : 0
+
+                onActivated: {
+                    var selectedCode = currentValue
+                    currentLocale = selectedCode
+                    languageManager.setLanguage(selectedCode)
+                }
+
                 background: Rectangle {
                     color: "#e8e9ef"
                     radius: 8
-                }
-                contentItem: Text {
-                    text: parent.text
-                    color: "black"
-                    font.bold: true
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignHCenter
-                }
-                onClicked: {
-                    isRussian = !isRussian
-                    // обновляем текст кнопок и загловков
-                    updateUIText()
+                    border.color: "#c0c0c0"
                 }
             }
 
-            // Расширетель (переместить вправо)
             Item {
-                Layout.fillWidth: true // Занимает все свободное пространство
+                Layout.fillWidth: true
                 height: 1
             }
 
@@ -385,19 +376,31 @@ ApplicationWindow {
 
                     ComboBox {
                         id: countrySelect
-                        model: ["▼ Select Country", "Russia", "USA", "Germany", "France", "UK", "Japan"]
+                        model: [
+                            { text: qsTr("▼ Select Country"), value: 0 },
+                            { text: qsTr("Russia"), value: 1 },
+                            { text: qsTr("USA"), value: 2 },
+                            { text: qsTr("Germany"), value: 3 },
+                            { text: qsTr("France"), value: 4 },
+                            { text: qsTr("UK"), value: 5 },
+                            { text: qsTr("Japan"), value: 6 }
+                        ]
+                        textRole: "text"
+                        valueRole: "value"
                         currentIndex: 0
                         font.pixelSize: 12
                         implicitWidth: 130
 
-                        onCurrentTextChanged: {
-                            if (currentIndex > 0) {
-                                updateCityList()
-                            } else {
-                                citySelect.model = ["Select City"]
-                                citySelect.currentIndex = 0
-                                controller.setCity("")
-                            }
+                        //onCurrentIndexChanged: {
+                            //if (currentIndex > 0) {
+                                //updateCityList()
+                            //} else {
+                                //citySelect.model = [{ text: qsTr("▼ Select City"), value: "" }]
+                                //citySelect.currentIndex = 0
+                                //controller.setCity("")
+                            //}
+                        onActivated: {
+                            updateCityList(""); // Передаем пустоту, чтобы сбросить город при ручном выборе страны
                         }
 
                         background: Rectangle {
@@ -408,7 +411,7 @@ ApplicationWindow {
                         }
 
                         contentItem: Text {
-                            text: countrySelect.currentText
+                            text: countrySelect.currentIndex === 0 ? qsTr("▼ Select Country") : countrySelect.currentText
                             color: countrySelect.currentIndex === 0 ? "#666666" : "#2c3e50"
                             font.bold: true
                             horizontalAlignment: Text.AlignLeft
@@ -458,7 +461,7 @@ ApplicationWindow {
                                     highlighted: ListView.isCurrentItem
 
                                     contentItem: Text {
-                                        text: modelData
+                                        text: modelData ? modelData.text : ""
                                         color: highlighted ? "#ffffff" : "#2c3e50"
                                         font.pixelSize: 12
                                         font.bold: highlighted ? true : false
@@ -477,21 +480,22 @@ ApplicationWindow {
 
                     ComboBox {
                         id: citySelect
-                        model: ["▼ Select City"]
+                        model: [{ text: qsTr("▼ Select City"), value: "" }]
+                        textRole: "text"
+                        valueRole: "value"
                         currentIndex: 0
-                        enabled: true
+                        font.pixelSize: 12
+                        implicitWidth: 130
+                        font.bold: true
 
-                        onCurrentTextChanged: {
-                            if (currentIndex > 0 && currentText !== "Select City" && currentText !== "▼ Select City") {
-                                controller.setCity(currentText)
+                        onActivated: {
+                            if (index > 0) {
+                                // Берет точное значение напрямую из массива модели
+                                controller.setCity(citySelect.model[index].value)
                             } else {
                                 controller.setCity("")
                             }
                         }
-
-                        font.pixelSize: 12
-                        implicitWidth: 130
-                        font.bold: true
 
                         background: Rectangle {
                             color: citySelect.enabled ? "#e8e9ef" : "#cccccc"
@@ -501,7 +505,7 @@ ApplicationWindow {
                         }
 
                         contentItem: Text {
-                            text: citySelect.currentText
+                            text: citySelect.currentIndex === 0 ? qsTr("▼ Select City") : citySelect.currentText
                             color: citySelect.currentIndex === 0 ? "#666666" : "#2c3e50"
                             font.pixelSize: 12
                             font.bold: true
@@ -552,7 +556,7 @@ ApplicationWindow {
                                     highlighted: ListView.isCurrentItem
 
                                     contentItem: Text {
-                                        text: modelData
+                                        text: modelData ? modelData.text : ""
                                         color: highlighted ? "#ffffff" : "#2c3e50"
                                         font.pixelSize: 12
                                         font.bold: highlighted ? true : false
@@ -574,7 +578,7 @@ ApplicationWindow {
             // Кнопка погоды
             Button {
                 id: weatherButton
-                text: controller.isWeatherRunning ? "Stop Weather" : "Start Weather"
+                text: controller.isWeatherRunning ? qsTr("Stop Weather") : qsTr("Start Weather")
                 enabled: controller.isCitySelected
 
                 background: Rectangle {
@@ -590,9 +594,7 @@ ApplicationWindow {
                     }
                     opacity: parent.pressed && enabled ? 0.7 : 1.0
 
-                    Behavior on color {
-                        ColorAnimation { duration: 150 }
-                    }
+                    Behavior on color { ColorAnimation { duration: 150 } }
                 }
 
                 contentItem: Text {
@@ -605,10 +607,7 @@ ApplicationWindow {
                 }
 
                 onClicked: {
-                    if (!controller.isCitySelected) {
-                        console.log("No city selected")
-                        return
-                    }
+                    if (!controller.isCitySelected) return
                     if (controller.isWeatherRunning) {
                         controller.stopWeather()
                     } else {
@@ -616,7 +615,6 @@ ApplicationWindow {
                     }
                 }
             }
-
         }
 
         // Фильтры
@@ -632,7 +630,7 @@ ApplicationWindow {
                 spacing: 10
 
                 Label {
-                    text: translateText("Filter by type:")
+                    text: qsTr("Filter by type:")
                     color: "#2c3e50"
                     font.bold: true
                     font.pixelSize: 12
@@ -640,7 +638,7 @@ ApplicationWindow {
 
                 ComboBox {
                     id: typeFilter
-                    model: ["All", "temperature", "pressure", "humidity"]
+                    model: [qsTr("All"), qsTr("temperature"), qsTr("pressure"), qsTr("humidity")]
                     currentIndex: 0
                     font.pixelSize: 12
                     font.bold: true
@@ -720,27 +718,27 @@ ApplicationWindow {
                         }
                     }
 
-                    onCurrentTextChanged: {
-                        if (currentText === "All") {
+                    onCurrentIndexChanged: {
+                        if (currentIndex === 0) {
                             tempSeries.visible = true
                             pressSeries.visible = true
                             humSeries.visible = true
                             controller.dataModel.resetFilters()
-                        } else if (currentText === "temperature") {
+                        } else if (currentIndex === 1) {
                             tempSeries.visible = true
                             pressSeries.visible = false
                             humSeries.visible = false
-                            controller.dataModel.setTypeFilter(currentText)
-                        } else if (currentText === "pressure") {
+                            controller.dataModel.setTypeFilter("temperature")
+                        } else if (currentIndex === 2) {
                             tempSeries.visible = false
                             pressSeries.visible = true
                             humSeries.visible = false
-                            controller.dataModel.setTypeFilter(currentText)
-                        } else if (currentText === "humidity") {
+                            controller.dataModel.setTypeFilter("pressure")
+                        } else if (currentIndex === 3) {
                             tempSeries.visible = false
                             pressSeries.visible = false
                             humSeries.visible = true
-                            controller.dataModel.setTypeFilter(currentText)
+                            controller.dataModel.setTypeFilter("humidity")
                         }
                     }
                 }
@@ -764,50 +762,47 @@ ApplicationWindow {
                 backgroundColor: "#1e1e1e"
                 visible: showWeatherGraph
 
-                  // @disable-check M300
-                 ValueAxis {
+                // @disable-check M300
+                ValueAxis {
                     id: weatherAxisX
-                    titleText: "Point number"
+                    titleText: qsTr("Point number")
                     min: 0
                     max: 60
                     gridVisible: true
                     gridLineColor: "#404040"
                 }
-                 // @disable-check M300
-                 ValueAxis {
+                // @disable-check M300
+                ValueAxis {
                     id: weatherAxisY_Temp
-                    titleText: "Temperature (°C)"
+                    titleText: qsTr("Temperature (°C)")
                     color: "#ff5050"
                     gridVisible: true
                     gridLineColor: "#404040"
                     min: -30
                     max: 40
                 }
-                 // @disable-check M300
-                 ValueAxis {
+                // @disable-check M300
+                ValueAxis {
                     id: weatherAxisY_Press
-                    titleText: "Pressure (hPa)"
+                    titleText: qsTr("Pressure (hPa)")
                     color: "#5090ff"
                     gridVisible: false
                     min: 950
                     max: 1050
-
-                 }
+                }
                 // @disable-check M300
-                 ValueAxis {
+                ValueAxis {
                     id: weatherAxisY_Hum
-                    titleText: "Humidity (%)"
+                    titleText: qsTr("Humidity (%)")
                     color: "#50ff50"
                     gridVisible: false
                     min: 0
                     max: 100
-
-
                 }
 
                 LineSeries {
                     id: tempSeries
-                    name: "Temperature"
+                    name: qsTr("Temperature")
                     color: "#ff5050"
                     width: 2
                     axisX: weatherAxisX
@@ -816,7 +811,7 @@ ApplicationWindow {
 
                 LineSeries {
                     id: pressSeries
-                    name: "Pressure"
+                    name: qsTr("Pressure")
                     color: "#5090ff"
                     width: 2
                     axisX: weatherAxisX
@@ -825,12 +820,11 @@ ApplicationWindow {
 
                 LineSeries {
                     id: humSeries
-                    name: "Humidity"
+                    name: qsTr("Humidity")
                     color: "#50ff50"
                     width: 2
                     axisX: weatherAxisX
                     axisYRight: weatherAxisY_Hum
-
                 }
 
                 legend {
@@ -840,7 +834,6 @@ ApplicationWindow {
                     color: "#1e1e1e"
                 }
             }
-
 
             // График биржи
             ChartView {
@@ -855,17 +848,18 @@ ApplicationWindow {
 
                 DateTimeAxis {
                     id: axisX
-                    format: "hh.mm.ss"
-                    titleText: "Time"
+                    format: "hh:mm:ss"
+                    titleText: qsTr("Time")
                     gridVisible: true
                     gridLineColor: "#404040"
                     labelsFont.pixelSize: 10
                     titleFont.pixelSize: 12
                 }
+
                 // @disable-check M300
                 ValueAxis {
                     id: axisY
-                    titleText: "Price"
+                    titleText: qsTr("Price")
                     gridVisible: true
                     gridLineColor: "#404040"
                     labelsFont.pixelSize: 10
@@ -874,22 +868,12 @@ ApplicationWindow {
 
                 CandlestickSeries {
                     id: candlestickSeries
-                    name: "Price"
+                    name: qsTr("Price")
                     increasingColor: "#26a69a"
                     decreasingColor: "#ef5350"
                     bodyWidth: 0.7
                     maximumColumnWidth: 30
                     minimumColumnWidth: 5
-
-                    onClicked: {
-                        console.log("Candle clicked:", timestamp, "Open:", open, "High:", high, "Low:", low, "Close:", close)
-                    }
-
-                    onHovered: {
-                        if (hovered) {
-                            console.log("Hovering over candle:", timestamp)
-                        }
-                    }
                 }
 
                 LineSeries {
@@ -905,7 +889,6 @@ ApplicationWindow {
                     alignment: Qt.AlignTop
                     labelColor: "white"
                     color: "#1e1e1e"
-
                 }
 
                 // Кнопки управления масштабом
@@ -913,7 +896,7 @@ ApplicationWindow {
                     anchors.top: parent.top
                     anchors.right: parent.right
                     anchors.topMargin: 10
-                    anchors.rightMargin: 220 // отступ с права
+                    anchors.rightMargin: 220
                     anchors.margins: 10
                     radius: 5
                     z: 10
@@ -927,43 +910,24 @@ ApplicationWindow {
                             text: "+"
                             font.pixelSize: 16
                             font.bold: true
-                            onClicked: {
-                                chartView.zoomIn()
-                            }
-
-                            background: Rectangle {
-                                color: "#42f5e3"
-                                radius: btnIn.height / 2
-                            }
+                            onClicked: chartView.zoomIn()
+                            background: Rectangle { color: "#42f5e3"; radius: btnIn.height / 2 }
                         }
                         Button {
                             id: btnIn2
                             text: "-"
                             font.pixelSize: 16
                             font.bold: true
-                            onClicked: {
-                                chartView.zoomOut()
-
-                            }
-
-                            background: Rectangle {
-                                color: "#42f5e3"
-                                radius: btnIn2.height / 2
-                            }
+                            onClicked: chartView.zoomOut()
+                            background: Rectangle { color: "#42f5e3"; radius: btnIn2.height / 2 }
                         }
                         Button {
                             id: btnIn3
                             text: "↺"
                             font.pixelSize: 16
                             font.bold: true
-                            onClicked: {
-                                chartView.zoomReset()
-                            }
-
-                            background: Rectangle {
-                                color: "#42f5e3"
-                                radius: btnIn2.height / 2
-                            }
+                            onClicked: chartView.zoomReset()
+                            background: Rectangle { color: "#42f5e3"; radius: btnIn3.height / 2 }
                         }
                     }
                 }
@@ -993,16 +957,16 @@ ApplicationWindow {
                             anchors.margins: 5
                             spacing: 10
 
-                            Rectangle { width: 180; height: 30; color: "#3d3d3d"; radius: 3; Text {id: headerTimestamp; text:
-                                                    translateText("Timestamp"); anchors.centerIn: parent; color: "white" } }
-                            Rectangle { width: 100; height: 30; color: "#3d3d3d"; radius: 3; Text {id: headerType; text:
-                                                    translateText("Type"); anchors.centerIn: parent; color: "white" } }
-                            Rectangle { width: 100; height: 30; color: "#3d3d3d"; radius: 3; Text {id: headerValue; text:
-                                                    translateText("Value"); anchors.centerIn: parent; color: "white" } }
-                            Rectangle { width: 80; height: 30; color: "#3d3d3d"; radius: 3; Text {id: headerUnit; text:
-                                                    translateText("Unit"); anchors.centerIn: parent; color: "white" } }
-                            Rectangle { width: 700; height: 30; color: "#3d3d3d"; radius: 3; Text {id: headerDetails; text:
-                                                    translateText("Details"); anchors.centerIn: parent; color: "white" } }
+                            Rectangle { width: 180; height: 30; color: "#3d3d3d"; radius: 3
+                                Text { text: qsTr("Timestamp"); anchors.centerIn: parent; color: "white" } }
+                            Rectangle { width: 100; height: 30; color: "#3d3d3d"; radius: 3
+                                Text { text: qsTr("Type"); anchors.centerIn: parent; color: "white" } }
+                            Rectangle { width: 100; height: 30; color: "#3d3d3d"; radius: 3
+                                Text { text: qsTr("Value"); anchors.centerIn: parent; color: "white" } }
+                            Rectangle { width: 80; height: 30; color: "#3d3d3d"; radius: 3
+                                Text { text: qsTr("Unit"); anchors.centerIn: parent; color: "white" } }
+                            Rectangle { width: 700; height: 30; color: "#3d3d3d"; radius: 3
+                                Text { text: qsTr("Details"); anchors.centerIn: parent; color: "white" } }
                         }
                     }
 
@@ -1017,7 +981,7 @@ ApplicationWindow {
                             spacing: 10
 
                             Text { width: 180; text: model.timestamp || ""; color: "white"; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter }
-                            Text { width: 100; text: model.type || ""; color: "white"; horizontalAlignment: Text.AlignHCenter }
+                            Text { width: 100; text: model.type ? qsTr(model.type) : ""; color: "white"; horizontalAlignment: Text.AlignHCenter }
                             Text { width: 100; text: model.value ? model.value.toFixed(2) : "0.00"; color: "#4caf50"; horizontalAlignment: Text.AlignHCenter }
                             Text { width: 80; text: model.unit || ""; color: "white"; horizontalAlignment: Text.AlignHCenter }
                             Text { width: 700; text: model.string || ""; color: "#808080"; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter }
@@ -1038,48 +1002,37 @@ ApplicationWindow {
                 anchors.fill: parent
                 anchors.margins: 10
 
-                Label { text: translateText("Total points:")+ " " + controller.dataModel.count;
-                                                                             color: "#B22222" }
+                Label { text: qsTr("Total points:") + " " + controller.dataModel.count; color: "#B22222" }
                 Label { text: "|" }
 
                 Label {
                     id: statusServer
-                    text: translateText("Server:")+ " " + (controller.isServerRunning
-                                                           ? translateText("Active")
-                                                           : translateText("Inactive")); color: "#B22222" }
+                    text: qsTr("Server:") + " " + (controller.isServerRunning ? qsTr("Active") : qsTr("Inactive"))
+                    color: "#B22222"
+                }
                 Label { text: "|" }
-                Label { text: translateText(" Database: PostgreSQL"); color: "#B22222" }
+                Label { text: qsTr("Database: PostgreSQL"); color: "#B22222" }
                 Label { text: "|" }
                 Label {
                     id: statusWeather
-                    text: translateText("Weather:")+ " " +
-                          (controller.isWeatherRunning
-                           ? translateText("Active")
-                           : translateText("Inactive"))
+                    text: qsTr("Weather:") + " " + (controller.isWeatherRunning ? qsTr("Active") : qsTr("Inactive"))
                     color: controller.isWeatherRunning ? "#4caf50" : "#f44336"
                 }
             }
         }
-}
+    }
 
     Connections {
         target: controller
 
         function onClearGraphRequested() {
-
-            // Очищаем серии графика
             tempSeries.clear()
             pressSeries.clear()
             humSeries.clear()
-
-            //Очищаем биржевой график
             candlestickSeries.clear()
             movingAverageSeries.clear()
-
-            // Сбрасываем оси
             weatherAxisX.min = 0
             weatherAxisX.max = 60
-
             axisX.min = 0
             axisX.max = 60
             axisY.min = 0
@@ -1087,37 +1040,28 @@ ApplicationWindow {
             console.log("Graph cleared")
         }
 
-
-
         function onCandleDataReceived(open, high, low, close, timestamp) {
-            console.log("Candle received:", timestamp, open, high, low, close)
             var dateTime = new Date(timestamp)
             candlestickSeries.append(dateTime, open, high, low, close)
-
             if (high > axisY.max) axisY.max = high + (high * 0.05)
             if (low < axisY.min) axisY.min = low - (low * 0.05)
         }
 
         function onChartDataReceived(index, value, type) {
-            // Для совместимости с погодой - пока не используется
-            console.log("Chart data received:", type, index, value)
-
             if (type === "temperature") {
-                console.log("ADDING TEMP POINT:", index,  value)
                 tempSeries.append(index, value)
                 if (value < weatherAxisY_Temp.min) weatherAxisY_Temp.min = value - 5
                 if (value > weatherAxisY_Temp.max) weatherAxisY_Temp.max = value + 5
-               } else if (type === "pressure") {
+            } else if (type === "pressure") {
                 pressSeries.append(index, value)
                 if (value < weatherAxisY_Press.min) weatherAxisY_Press.min = value - 10
                 if (value > weatherAxisY_Press.max) weatherAxisY_Press.max = value + 10
-               } else if (type === "humidity") {
+            } else if (type === "humidity") {
                 humSeries.append(index, value)
                 if (value < weatherAxisY_Hum.min) weatherAxisY_Hum.min = value - 5
                 if (value > weatherAxisY_Hum.max) weatherAxisY_Hum.max = value + 5
             }
 
-            // Масштабирование оси X
             if (index > 50) {
                 weatherAxisX.min = index - 50
                 weatherAxisX.max = index + 5
@@ -1127,5 +1071,4 @@ ApplicationWindow {
             }
         }
     }
-
 }

@@ -14,7 +14,7 @@ if (MSVC)
 endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Core Quick QuickControls2 Network Sql WebSockets Pdf Widgets
-Charts ChartsQml)
+Charts ChartsQml LinguistTools)
 
 qt_add_executable(DataMonitorPro
     src/main.cpp
@@ -68,9 +68,21 @@ qt_add_qml_module(DataMonitorPro
         qml/main.qml
     DEPENDENCIES
         QtCharts
+        SOURCES src/core/LanguageManager.h
+        SOURCES src/core/LanguageManager.h
+        SOURCES src/core/LanguageManager.cpp src/core/LanguageManager.h
 
 )
 
+# Настройка системы переводов
+set(TS_FILES
+    "translations/app_ru.ts"
+)
+
+qt_add_translations(DataMonitorPro
+    TS_FILES ${TS_FILES}
+    RESOURCE_PREFIX "/translations"
+)
 
 target_compile_definitions(DataMonitorPro
     PRIVATE
