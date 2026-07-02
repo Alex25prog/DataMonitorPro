@@ -365,7 +365,7 @@ ApplicationWindow {
             // Выбор страны и города
             Rectangle {
                 height: 35
-                width: 300
+                Layout.preferredWidth: 300 // Фиксированная ширина
                 color: "#3d3d3d"
                 radius: 5
 
@@ -389,16 +389,12 @@ ApplicationWindow {
                         valueRole: "value"
                         currentIndex: 0
                         font.pixelSize: 12
-                        implicitWidth: 130
+                        Layout.fillWidth: true // Растягивается внутри Rectangle
+                        Layout.minimumWidth: 120
 
-                        //onCurrentIndexChanged: {
-                            //if (currentIndex > 0) {
-                                //updateCityList()
-                            //} else {
-                                //citySelect.model = [{ text: qsTr("▼ Select City"), value: "" }]
-                                //citySelect.currentIndex = 0
-                                //controller.setCity("")
-                            //}
+                        // Динамическая ширина
+                        //implicitWidth: Math.max(100, contentItem.implicitWidth + indicator.width + 20)
+
                         onActivated: {
                             updateCityList(""); // Передаем пустоту, чтобы сбросить город при ручном выборе страны
                         }
@@ -411,12 +407,16 @@ ApplicationWindow {
                         }
 
                         contentItem: Text {
+                            // Привязка ширины текста
+                            leftPadding: 8 // отступ от края
+                            rightPadding: 10
                             text: countrySelect.currentIndex === 0 ? qsTr("▼ Select Country") : countrySelect.currentText
                             color: countrySelect.currentIndex === 0 ? "#666666" : "#2c3e50"
                             font.bold: true
                             horizontalAlignment: Text.AlignLeft
                             verticalAlignment: Text.AlignHCenter
-                            leftPadding: 8
+                            // Автоматическая ширина текста
+                            //implicitWidth: paintedWidth
                         }
 
                         indicator: Canvas {
@@ -485,8 +485,13 @@ ApplicationWindow {
                         valueRole: "value"
                         currentIndex: 0
                         font.pixelSize: 12
-                        implicitWidth: 130
+                        Layout.preferredWidth: implicitWidth //130
                         font.bold: true
+                        Layout.fillWidth: true // растягивается внутри Rectangle
+                        Layout.minimumWidth: 120
+
+                        // Динамическая ширина
+                        //implicitWidth: Math.max(100, contentItem.implicitWidth + indicator.width + 20)
 
                         onActivated: {
                             if (index > 0) {
@@ -505,13 +510,16 @@ ApplicationWindow {
                         }
 
                         contentItem: Text {
+                            leftPadding: 8
+                            rightPadding: 10
                             text: citySelect.currentIndex === 0 ? qsTr("▼ Select City") : citySelect.currentText
                             color: citySelect.currentIndex === 0 ? "#666666" : "#2c3e50"
                             font.pixelSize: 12
                             font.bold: true
                             horizontalAlignment: Text.AlignLeft
                             verticalAlignment: Text.AlignHCenter
-                            leftPadding: 8
+                            // Автоматическая ширина текста
+                            //implicitWidth: paintedWidth
                         }
 
                         indicator: Canvas {
