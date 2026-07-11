@@ -5,6 +5,16 @@
 #include <QNetworkAccessManager> //Для HTTP-запросов к API
 #include <QNetworkReply>         //Для обработки ответов от API
 #include <QTimer>                //Для переодических запросов
+#include <QDateTime>
+
+// Структура для хранения данных погоды
+struct WeatherData {
+    double temperature = 0;
+    double pressure = 0;
+    double humidity = 0;
+    QDateTime timestamp;
+    QString description;
+};
 
 class WeatherFetcher : public QObject //Класс для получения данных о погоде через OpenWeatherMap API
 
@@ -27,7 +37,7 @@ signals:
         /** Сигнал, испускаемый при получении новых данных о погоде
            Для каждого параметра испускается отдельный сигнал
          */
-    void weatherDataReceived(const QString& type, double value, const QString& unit);
+    void weatherDataReceived(const WeatherData& data);
     void errorOccurred(const QString& error); //Сигнал об ошибке
 
 private slots:

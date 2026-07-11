@@ -16,8 +16,16 @@
     , m_processor(new DataProcessor(this))
     , m_exporter (new ReportExporter(this))
     , m_weatherFetcher(new WeatherFetcher(this))
+    , m_pointIndex(0)
+    , m_weatherIndex(0)
+    , m_exchangeClient(new ExchangeClient(this))
+    , m_candleModel(new CandleModel(this))
+    , m_chartManager(new TradingChartManager(this))
 
 {
+    // Добавим контекстные свойства
+     m_engine->rootContext()->setContextProperty("candleModel", m_candleModel);
+
     // Подключаем сигналы
     connect(m_processor, &DataProcessor::dataProcessed, this, &MainController::updateChart);
     connect(m_server, &WebSocketServer::dataReceived, this, &MainController::onDataReceived);
@@ -52,6 +60,33 @@
     connect(m_weatherFetcher, &WeatherFetcher::errorOccurred,
             [](const QString& error) {qDebug() << "Weather error:" << error;});
 
+    // Подключаем сигналы биржи
+    connect(m_exchangeClient, &ExchangeClient::candlesLoaded,
+            [this](const QList<CandleData>& candles) {
+                m_candleModel->setCandles(candles);
+                qDebug() << "Candles loaded:" << candles.size();
+                // Обновляем график через ChartManager
+                m_chartManager->updateSeries(m_candleModel);
+                // Сигнал для QML что данные обновлены
+                emit candlesUpdated();
+    });
+
+    connect(m_exchangeClient, &ExchangeClient::newCandle,
+            [this](const CandleData& candle) {
+                m_candleModel->addCandle(candle);
+                qDebug() << "New candle added:" << candle.openTime;
+                // Обновляем график через ChartManager
+                m_chartManager->updateSeries(m_candleModel);
+                // Сигнал для QML
+                emit candlesUpdated();
+
+    });
+
+    connect(m_exchangeClient, &ExchangeClient::errorOccurred,
+            [](const QString& error) {
+                qDebug() << "Exchange error:" << error;
+    });
+
         // Загружаем пароль БД из безопасной папки
     QString dbPassword = SecretManager::getDbPassword();
     if (dbPassword.isEmpty()) {
@@ -77,8 +112,9 @@
     // Регистрируем модель для QML
     qmlRegisterUncreatableType<DataModel>("com.datamonitor", 1, 0, "DataModel", "Cannot create DataModel in QML");
 
+    qmlRegisterUncreatableType<CandleModel>("com.datamonitor", 1,0, "CandleModel", "Cannot create CandleModel in QML");
     // Делаем контроллер доступным из QML
-    //m_engine->rootContext()->setContextProperty("controller", this);
+    m_engine->rootContext()->setContextProperty("controller", this);
 }
 
 //Деструктор
@@ -86,7 +122,17 @@ MainController::~MainController()
 {
     qDebug() << "===MainController destructor SRART ===";
 
+    if (m_exchangeClient) {
+        m_exchangeClient->stopRealtimeUpdates();
+    }
+
+    if (m_weatherFetcher) {
+        m_weatherFetcher->stopFetching();
+    }
+
     stopServer();
+
+    qDebug() << "===MainCintroller destructor END ===";
 
 }
 
@@ -202,13 +248,33 @@ void MainController::updateChart(const DataPoint& point)
         m_pointIndex++; // 0, 1, 2, 3...
 }
 
-void MainController::onWeatherDataReceived(const QString& type, double value, const QString& unit)
+void MainController::onWeatherDataReceived(const WeatherData& data)
 {
-    DataPoint point(QDateTime::currentDateTime(), type, value, unit);
-    m_processor->processDataPoint(point);
-    m_database->saveDataPoint(point);
-    updateChart(point); //Для обновления графика
-    qDebug() << "Weather saved:" << type << value << unit;
+    // Создаем точки для модели и БДэ
+    QList<DataPoint> points = {
+        { data.timestamp, "temperature", data.temperature, "°C"},
+        { data.timestamp, "pressure", data.pressure, "hPa"},
+        { data.timestamp, "humidity", data.humidity, "%"},
+
+    };
+
+    // Сохраняем в базу и модель
+    for (const auto& point : points) {
+        m_database->saveDataPoint(point);
+        m_dataModel->addDataPoint(point);
+    }
+
+    // Отправляем три точки с ОДНИМ индексом
+    emit chartDataReceived(m_weatherIndex, data.temperature, "temperature");
+    emit chartDataReceived(m_weatherIndex, data.pressure, "pressure");
+    emit chartDataReceived(m_weatherIndex, data.humidity, "humidity");
+
+    // Увеличиваем индекс для следующего измерения
+    m_weatherIndex++;
+    qDebug() << "Weather measurement #" << (m_weatherIndex -1)
+             << "T=" << data.temperature
+             << "P=" << data.pressure
+             << "H=" << data.humidity;
 }
 void MainController::exportToCSV()//Метод экспорта в CSV
 {
@@ -245,6 +311,7 @@ void MainController::exportToPDF()
 void MainController::startWeather()//Метод старта
 {
     if (m_weatherFetcher){
+
         m_weatherFetcher->startFetching(300);//обновления каждые 300сек(5мин)
         m_weatherRunning = true;
         emit weatherRunningChanged();//Отсылаем сигнал в QML для изменения кнопки
@@ -278,6 +345,11 @@ void MainController::setCity(const QString& city)
                 qDebug() << "City selected:" << city;
             }
 
+            // Очищаем график при смене города
+            m_dataModel->clear();
+            m_weatherIndex = 0;
+            emit clearGraphRequested();
+
             // Если погода уже запущена - обновляем данные для нового города
             if (m_weatherRunning) {
                 m_weatherFetcher->stopFetching();
@@ -299,6 +371,7 @@ void MainController::clearData()//метод для очистки данных(
     //Очищаем модель данных (таблицу)
     m_dataModel->clear();
     m_pointIndex = 0;
+    m_weatherIndex = 0;
 
     //Отправляем сигнал для очистки графика в QML
     emit clearGraphRequested();
@@ -312,33 +385,44 @@ void MainController::addCandle(double open, double high, double low, double clos
     candle.high = high;
     candle.low = low;
     candle.close = close;
-    candle.timestamp = QDateTime::fromString(timestamp, Qt::ISODate);
+    candle.openTime = QDateTime::fromString(timestamp, Qt::ISODate).toMSecsSinceEpoch();
+    candle.closeTime = candle.openTime + 3600000;
+    candle.volume = 0;
+    candle.isClosed = true;
 
     m_candles.append(candle);
 
     // Отправить в сигнал QML
-    emit candleDataReceived(open, high, low, close, timestamp);
+   // emit candleDataReceived(open, high, low, close, timestamp);
 
         qDebug() << "Candle added:" << timestamp << "O:" << open << "H:" << high << "L:" << low << "C:" << close;
 }
 
-// В MainController.cpp добавим тестовый метод:
-/*void MainController::generateTestCandles()
+// Методы для работы с биржей
+
+void MainController::loadCandles(const QString& symbol, int intervalIndex, int limit)
 {
-    // Имитация 20 свечей
-    QDateTime time = QDateTime::currentDateTime();
-    double price = 50000.0;  // Начальная цена BTC/USDT
-
-    for (int i = 0; i < 20; i++) {
-        double change = (rand() % 200 - 100) / 100.0;  // -1% до +1%
-        double open = price;
-        double close = price * (1 + change);
-        double high = qMax(open, close) + (rand() % 100);
-        double low = qMin(open, close) - (rand() % 100);
-
-        addCandle(open, high, low, close, time.toString(Qt::ISODate));
-
-        price = close;
-        time = time.addSecs(3600);  // +1 час
+    if (m_exchangeClient) {
+        Interval interval = static_cast<Interval>(intervalIndex);
+        m_exchangeClient->loadHistory(symbol, interval, limit);
+        qDebug() << "Loading candles for" << symbol << "limit:" << limit;
     }
-*/
+}
+
+void MainController::startRealtimeCandles(const QString& symbol, int intervalIndex)
+{
+    if (m_exchangeClient) {
+        Interval interval = static_cast<Interval>(intervalIndex);
+        m_exchangeClient->startRealtimeUpdates(symbol, interval);
+        qDebug() << "Realtime candles started for" << symbol;
+    }
+}
+
+void MainController::stopRealtimeCandles()
+{
+    if (m_exchangeClient) {
+        m_exchangeClient->stopRealtimeUpdates();
+        qDebug() << "Realtime candles stopped";
+    }
+}
+

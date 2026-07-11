@@ -118,34 +118,35 @@ void WeatherFetcher::parseResponse(const QByteArray& data)
         if (root.contains("message")) {
             qDebug() << "API message:" << root["message"].toString();
         }
+        emit errorOccurred("Unexpected API response");
         return;
     }
 
     QJsonObject main = root["main"].toObject();
 
-    // Температура
-    double temp = main["temp"].toDouble();
-    emit weatherDataReceived("temperature", temp, "°C");
-    qDebug() << "Temperature:" << temp << "°C";
-
-    // Давление
-    double pressure = main["pressure"].toDouble();
-    emit weatherDataReceived("pressure", pressure, "hPa");
-    qDebug() << "Pressure:" << pressure << "hPa";
-
-    // Влажность
-    double humidity = main["humidity"].toDouble();
-    emit weatherDataReceived("humidity", humidity, "%");
-    qDebug() << "Humidity:" << humidity << "%";
+    // Создаем один объект со всеми данными
+    WeatherData weather;
+    weather.temperature = main["temp"].toDouble();
+    weather.pressure = main["pressure"].toDouble();
+    weather.humidity = main["humidity"].toDouble();
+    weather.timestamp = QDateTime::currentDateTime();
 
     // Описание погоды (опционально)
     if (root.contains("weather")) {
-        QJsonArray weather = root["weather"].toArray();
-        if (!weather.isEmpty()) {
-            QString description = weather[0].toObject()["description"].toString();
-            qDebug() << "Weather:" << description;
+        QJsonArray weatherArray = root["weather"].toArray();
+        if (!weatherArray.isEmpty()) {
+            weather.description = weatherArray[0].toObject()["description"].toString();
+            //qDebug() << "Weather:" << description;
         }
     }
+
+    // Сигнал только с валидными данными
+      emit weatherDataReceived(weather);
+      qDebug() << "Weather package received:"
+             << "T=" << weather.temperature << "°C"
+             << "P=" << weather.pressure << "hPa"
+             << "H=" << weather.humidity << "%"
+             << "Desc:" << weather.description;
 }
 
 void WeatherFetcher::onTimerTimeout()

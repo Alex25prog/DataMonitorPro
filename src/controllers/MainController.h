@@ -11,7 +11,9 @@
 #include "../core/DataProcessor.h" // Обработчик данных (валидация, статистика)
 #include "../network/WeatherFetcher.h" //Получатель погоды из OpenWeatherMap API
 #include "../export/ReportExporter.h"
-
+#include "../network/ExchangeClient.h"
+#include "../models/CandleModel.h"
+#include "../chart/TradingChartManager.h"
 
 /**
  Главный контроллер приложения
@@ -22,18 +24,12 @@
  Автоматический сбор погоды (WeatherFetcher)
 */
 
-struct CandleData {
-    QDateTime timestamp;
-    double open;
-    double high;
-    double low;
-    double close;
-};
 
 class MainController : public QObject
 {
     Q_OBJECT // Макрос для поддержки сигналов/слотов и метаобъектной системы Qt
     // Q_PROPERTY позволяет QML обращаться к этим свойствам как к обычным переменным
+    Q_PROPERTY(TradingChartManager* chartManager READ chartManager CONSTANT)
     Q_PROPERTY(DataModel* dataModel READ dataModel CONSTANT) // Модель данных для таблицы
     Q_PROPERTY(bool isServerRunning READ isServerRunning NOTIFY serverRunningChanged) // Статус сервера
     Q_PROPERTY(bool isWeatherRunning READ isWeatherRunning NOTIFY weatherRunningChanged)
@@ -49,6 +45,7 @@ public:
     bool isServerRunning() const { return m_serverRunning; } //Возвращает статус сервера (запущен/остановлен)
     bool isWeatherRunning() const { return m_weatherRunning; }
     bool isCitySelected() const { return m_citySelected; }
+    TradingChartManager* chartManager() const { return m_chartManager; }
     
     Q_INVOKABLE bool startServer(quint16 port = 8080); //Запускает WebSocket-сервер
     Q_INVOKABLE void stopServer(); //Останавливает WebSocket-сервер
@@ -60,6 +57,11 @@ public:
     Q_INVOKABLE void clearData();
     Q_INVOKABLE void setCity(const QString& city);//Для приема города
     Q_INVOKABLE void addCandle(double open, double high, double low, double close, const QString& timestamp);
+    Q_INVOKABLE void loadCandles(const QString& symbol, int intervalIndex, int limit = 100);
+    Q_INVOKABLE void startRealtimeCandles(const QString& symbol, int intervalIndex);
+    Q_INVOKABLE void stopRealtimeCandles();
+    Q_PROPERTY(CandleModel* candleModel READ candleModel CONSTANT)
+    CandleModel* candleModel() const { return m_candleModel; }
 
 signals:
     void serverRunningChanged(); //Сигнал об изменении статуса сервера
@@ -67,13 +69,16 @@ signals:
     void weatherRunningChanged();
     void citySelectedChanged();
     void clearGraphRequested();//Сигнал для очистки графика
-    void candleDataReceived(double open, double high, double low, double close, QString timestamp);
+    //void candleDataReceived(const QList<CandleData>& candles);
+    //void weatherMeasurementReceived(int index, double temperature, double pressure, double humidity);
+    //void newCandle(const CandleData& candle);
+    void candlesUpdated();
 
 private slots:
     void onDataReceived(const QString& data); //Обработчик получения данных от WebSocket-сервера
     void onDataProcessed(const DataPoint& point);//Обработчик обработанной точки данных
     void updateChart(const DataPoint& point);//Обновляет график новыми данными
-    void onWeatherDataReceived(const QString& type, double value, const QString& unit);//Обработчик данных о погоде от WeatherFetcher
+    void onWeatherDataReceived(const WeatherData& data);//Обработчик данных о погоде от WeatherFetcher
 
 private:
     QQmlApplicationEngine* m_engine;//Движок QML (для регистрации контроллера)
@@ -89,6 +94,10 @@ private:
     bool m_citySelected = false;
     QList<CandleData> m_candles;
     int m_pointIndex = 0;
+    int m_weatherIndex = 0; // Счетчик измерений погоды
+    ExchangeClient* m_exchangeClient = nullptr;
+    CandleModel* m_candleModel = nullptr;
+    TradingChartManager* m_chartManager = nullptr;
 
 };
 

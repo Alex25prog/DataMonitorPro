@@ -6,8 +6,16 @@
 #include <QDebug>
 #include <QQuickStyle>
 #include "src/core/LanguageManager.h"
+#include "src/models/CandleData.h"
+
+// Функция для регистрация типа
+static void registerTypes() {
+    qRegisterMetaType<CandleData>("CandleData");
+    qRegisterMetaType<QList<CandleData>>("QList<CandleData>");
+}
 int main(int argc, char *argv[])
 {
+    registerTypes();
 
     qputenv("QSG_RHI_BACKEND", "opengl");
     qputenv("QT_QUICK_CONTROLS_CONF", ":/qtquickcontrols2.conf");

@@ -35,6 +35,13 @@ qt_add_executable(DataMonitorPro
     src/export/ReportExporter.h
     src/export/ReportExporter.cpp
     src/core/SecretManager.h
+    src/network/ExchangeClient.cpp
+    src/network/ExchangeClient.h
+    src/models/CandleData.h
+    src/models/CandleModel.cpp
+    src/models/CandleModel.h
+    src/chart/TradingChartManager.h
+    src/chart/TradingChartManager.cpp
 
 )
 
@@ -71,6 +78,13 @@ qt_add_qml_module(DataMonitorPro
         SOURCES src/core/LanguageManager.h
         SOURCES src/core/LanguageManager.h
         SOURCES src/core/LanguageManager.cpp src/core/LanguageManager.h
+        SOURCES src/network/ExchangeClient.h
+        SOURCES src/network/ExchangeClient.cpp
+        SOURCES src/models/CandleData.h
+        SOURCES src/models/CandleModel.h
+        SOURCES src/models/CandleModel.cpp
+        SOURCES src/chart/TradingChartManager.h
+        SOURCES src/chart/TradingChartManager.cpp
 
 )
 

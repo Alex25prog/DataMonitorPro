@@ -20,6 +20,75 @@ ApplicationWindow {
     property bool showWeatherGraph: true
     property bool showTradingGraph: false
 
+    // Функция обновления биржевого графика из модели
+
+    function updateTradingChart() {
+        console.log("=== Update trading chart ===")
+        console.log("Candles in model:", candleModel ? candleModel.count : 0)
+
+        if (!candleModel || candleModel.count === 0) {
+            console.log("No candles in model")
+            return
+        }
+
+        // Очищаем серию
+        candlestickSeries.clear()
+
+        var minPrice = Infinity
+        var maxPrice = -Infinity
+        var firstTime = null
+        var lastTime = null
+
+        // Используем правильный способ: создаем CandlestickSet
+        for (var i = 0; i < candleModel.count; i++) {
+            var c = candleModel.get(i)
+
+
+            if (!c) {
+                console.log("Invalid candle at index", i)
+                continue
+            }
+
+            // В Qt 6.8 объект создается через CandlestickSet
+            // и добавляется через append(set)
+
+            var set = Qt.createQmlObject(
+                'import QtCharts; CandlestickSet { timestamp: ' + c.openTime +
+                '; open: ' + c.open +
+                '; high: ' + c.high +
+                '; low: ' + c.low +
+                '; close: ' + c.close + ' }',
+                candlestickSeries,
+                "candlestickSet"
+            )
+            candlestickSeries.append(set)
+
+            if (c.low < minPrice) minPrice = c.low
+            if (c.high > maxPrice) maxPrice = c.high
+
+            if (i === 0) firstTime = c.openTime
+            if (i === candleModel.count - 1) lastTime = c.closeTime
+        }
+
+        console.log("CandlestickSeries count after append:", candlestickSeries.count)
+
+        if (minPrice === Infinity || maxPrice === -Infinity) {
+            console.log("No valid candles found")
+            return
+        }
+
+        axisX.min = new Date(firstTime)
+        axisX.max = new Date(lastTime + 3600000)
+
+        var margin = (maxPrice - minPrice) * 0.1
+        if (margin === 0) margin = 10
+        axisY.min = minPrice - margin
+        axisY.max = maxPrice + margin
+
+        console.log("Chart update! Candles:", candleModel.count,
+                    "Min price:", axisY.min, "Max price:", axisY.max)
+    }
+
     // Обработчик смены языка
     onCurrentLocaleChanged: {
         // Запоминает текущие значения перед перерисовкой
@@ -29,7 +98,7 @@ ApplicationWindow {
         // Принудительно обновляем список стран, чтобы сработал qsTr()
         var countryModel = []
         if (currentLocale === "ru") {
-        countryModel = [
+            countryModel = [
                     { text: "▼ Выберите страну", value: 0 },
                     { text: "Россия", value: 1 },
                     { text: "США", value: 2 },
@@ -138,6 +207,7 @@ ApplicationWindow {
             default:
                 cityModel = [{ text: isRussian ? "▼ Выберите город" : "▼ Select City", value: "" }]
         }
+
 
         citySelect.model = cityModel
         // Если нам передали сохраненный город (режим смены языка) ищем и восстанавливаем
@@ -328,6 +398,7 @@ ApplicationWindow {
                 onClicked: {
                     showWeatherGraph = false
                     showTradingGraph = true
+                    updateTradingChart()
                 }
             }
 
@@ -392,8 +463,6 @@ ApplicationWindow {
                         Layout.fillWidth: true // Растягивается внутри Rectangle
                         Layout.minimumWidth: 120
 
-                        // Динамическая ширина
-                        //implicitWidth: Math.max(100, contentItem.implicitWidth + indicator.width + 20)
 
                         onActivated: {
                             updateCityList(""); // Передаем пустоту, чтобы сбросить город при ручном выборе страны
@@ -415,8 +484,6 @@ ApplicationWindow {
                             font.bold: true
                             horizontalAlignment: Text.AlignLeft
                             verticalAlignment: Text.AlignHCenter
-                            // Автоматическая ширина текста
-                            //implicitWidth: paintedWidth
                         }
 
                         indicator: Canvas {
@@ -490,8 +557,6 @@ ApplicationWindow {
                         Layout.fillWidth: true // растягивается внутри Rectangle
                         Layout.minimumWidth: 120
 
-                        // Динамическая ширина
-                        //implicitWidth: Math.max(100, contentItem.implicitWidth + indicator.width + 20)
 
                         onActivated: {
                             if (index > 0) {
@@ -813,6 +878,7 @@ ApplicationWindow {
                     name: qsTr("Temperature")
                     color: "#ff5050"
                     width: 2
+                    //pointsVisible: true // Точка на графике
                     axisX: weatherAxisX
                     axisY: weatherAxisY_Temp
                 }
@@ -822,6 +888,7 @@ ApplicationWindow {
                     name: qsTr("Pressure")
                     color: "#5090ff"
                     width: 2
+                    //pointsVisible: true // Точка на графике
                     axisX: weatherAxisX
                     axisYRight: weatherAxisY_Press
                 }
@@ -831,6 +898,7 @@ ApplicationWindow {
                     name: qsTr("Humidity")
                     color: "#50ff50"
                     width: 2
+                    //pointsVisible: true // Точка на графике
                     axisX: weatherAxisX
                     axisYRight: weatherAxisY_Hum
                 }
@@ -845,12 +913,12 @@ ApplicationWindow {
 
             // График биржи
             ChartView {
-                id: chartView
+                id: tradingChart
                 SplitView.preferredHeight: 300
                 Layout.fillWidth: true
                 theme: ChartView.ChartThemeDark
                 antialiasing: true
-                animationOptions: ChartView.SeriesAnimations
+                animationOptions: ChartView.NoAnimations // NoAnimation, чтобы избежать assert(error)
                 backgroundColor: "#1e1e1e"
                 visible: showTradingGraph
 
@@ -872,8 +940,11 @@ ApplicationWindow {
                     gridLineColor: "#404040"
                     labelsFont.pixelSize: 10
                     titleFont.pixelSize: 12
+                    min: 0
+                    max: 100000
                 }
 
+                // Серия для свечей - пустая, заполняется из С++ через модель
                 CandlestickSeries {
                     id: candlestickSeries
                     name: qsTr("Price")
@@ -882,6 +953,57 @@ ApplicationWindow {
                     bodyWidth: 0.7
                     maximumColumnWidth: 30
                     minimumColumnWidth: 5
+                    axisX: axisX
+                    axisY: axisY
+
+                    // Используем модель для добавления свечей
+                    //onCountChanged: {
+                        // Автоматическое масштабирование
+                    //}
+                }
+                // Кнопки управления
+                Row {
+                    spacing: 10 // Отступ между кнопками в пикселях
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.margins: 10
+                    z: 10
+
+                Button {
+                    text: "Load BTCUSDT"
+                    background: Rectangle {
+                        color: "#1565c0"
+                        radius: 5
+                        opacity: parent.pressed ? 0.7 : 1.0
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.bold: true
+                    }
+
+                    onClicked:
+                        controller.loadCandles("BTCUSDT", 4, 100) // 4 = H1
+                }
+
+                Button {
+                    text: "Start Realtime"
+                    background: Rectangle {
+                        color: "#2e7d32"
+                        radius: 5
+                        opacity: parent.pressed ? 0.7 : 1.0
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.bold: true
+                    }
+
+                    onClicked:
+                        controller.startRealtimeCandles("BTCUSDT", 4)
+                    }
                 }
 
                 LineSeries {
@@ -918,7 +1040,7 @@ ApplicationWindow {
                             text: "+"
                             font.pixelSize: 16
                             font.bold: true
-                            onClicked: chartView.zoomIn()
+                            onClicked: tradingChart.zoomIn()
                             background: Rectangle { color: "#42f5e3"; radius: btnIn.height / 2 }
                         }
                         Button {
@@ -926,7 +1048,7 @@ ApplicationWindow {
                             text: "-"
                             font.pixelSize: 16
                             font.bold: true
-                            onClicked: chartView.zoomOut()
+                            onClicked: tradingChart.zoomOut()
                             background: Rectangle { color: "#42f5e3"; radius: btnIn2.height / 2 }
                         }
                         Button {
@@ -934,7 +1056,7 @@ ApplicationWindow {
                             text: "↺"
                             font.pixelSize: 16
                             font.bold: true
-                            onClicked: chartView.zoomReset()
+                            onClicked: tradingChart.zoomReset()
                             background: Rectangle { color: "#42f5e3"; radius: btnIn3.height / 2 }
                         }
                     }
@@ -1034,49 +1156,108 @@ ApplicationWindow {
         target: controller
 
         function onClearGraphRequested() {
+            // Очищаем все линии
             tempSeries.clear()
             pressSeries.clear()
             humSeries.clear()
             candlestickSeries.clear()
             movingAverageSeries.clear()
+
+            // Сбрасываем оси погоды
             weatherAxisX.min = 0
             weatherAxisX.max = 60
-            axisX.min = 0
-            axisX.max = 60
+
+            // Сбрасываем оси биржи с помощью объектов Date
+            var now = new Date()
+            var future = new Date(now.getTime() + 60 * 60 * 1000) // + 1час
+            axisX.min = now
+            axisX.max = future
+
             axisY.min = 0
             axisY.max = 100
-            console.log("Graph cleared")
+            console.log("Graph cleared and axes reset successfully")
         }
 
-        function onCandleDataReceived(open, high, low, close, timestamp) {
-            var dateTime = new Date(timestamp)
-            candlestickSeries.append(dateTime, open, high, low, close)
-            if (high > axisY.max) axisY.max = high + (high * 0.05)
-            if (low < axisY.min) axisY.min = low - (low * 0.05)
-        }
 
         function onChartDataReceived(index, value, type) {
+            console.log("Chart data", type, index, value)
+
+            // Добавляем все три точки с одним индексом
+            //tempSeries.append(index, temperature)
+            //pressSeries.append(index, pressure)
+            //humSeries.append(index, humidity)
+
+            var series;
+            var axisY;
+            var delta = 5;
+
+            // Динамическое масштабирование для температуры
             if (type === "temperature") {
-                tempSeries.append(index, value)
-                if (value < weatherAxisY_Temp.min) weatherAxisY_Temp.min = value - 5
-                if (value > weatherAxisY_Temp.max) weatherAxisY_Temp.max = value + 5
+                series = tempSeries;
+                axisY = weatherAxisY_Temp;
+                delta = 5;
+            // Динамическое масштабирование для давления
             } else if (type === "pressure") {
-                pressSeries.append(index, value)
-                if (value < weatherAxisY_Press.min) weatherAxisY_Press.min = value - 10
-                if (value > weatherAxisY_Press.max) weatherAxisY_Press.max = value + 10
+                series = pressSeries;
+                axisY = weatherAxisY_Press;
+                delta = 10;
+            // Динамическое масштабирование для влажности
             } else if (type === "humidity") {
-                humSeries.append(index, value)
-                if (value < weatherAxisY_Hum.min) weatherAxisY_Hum.min = value - 5
-                if (value > weatherAxisY_Hum.max) weatherAxisY_Hum.max = value + 5
+                series = humSeries;
+                axisY = weatherAxisY_Hum;
+                delta = 5;
+            } else {
+                return;
             }
 
-            if (index > 50) {
-                weatherAxisX.min = index - 50
-                weatherAxisX.max = index + 5
-            } else {
-                weatherAxisX.min = 0
-                weatherAxisX.max = 60
+            // Обновляем ось Y
+            if (value < axisY.min) axisY.min = value - delta;
+            if (value > axisY.max) axisY.max = value + delta;
+
+            // Добавляем точку
+            series.append(index + 1, value)
+
+            console.log("Series count", series.count)
+            console.log(
+                weatherChart.plotArea.width,
+                weatherChart.plotArea.height
+            )
+
+                  //Принудительно Обновляем ось X
+                   var currentMaxX = Math.max(tempSeries.count, pressSeries.count, humSeries.count);
+                  // Устанавливаем видимы диапазон для первой точки\
+                   if (currentMaxX <= 1) {
+                       weatherAxisX.min = 0;
+                       weatherAxisX.max = 60;
+
+                   } else if (currentMaxX > 50) {
+                       weatherAxisX.min = currentMaxX - 50;
+                       weatherAxisX.max = currentMaxX + 5;
+                   } else {
+                       weatherAxisX.min = 0;
+                       weatherAxisX.max = 60;
+
+            }
+                   // Принудительно обновляем график (для QtCharts)
+                   weatherChart.update();
+        }
+
+        function onCandlesUpdated() {
+            console.log("=== CandlesUpdated signal received ===")
+            updateTradingChart()
+        }
+    }
+
+    // Следим за изменением модели
+    Connections {
+        target: candleModel
+
+        function onCountChanged() {
+            console.log("=== CandleModel count changed to:", candleModel.count, "===")
+            if (showTradingGraph) {
+                updateTradingChart()
             }
         }
     }
+
 }
