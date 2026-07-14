@@ -24,7 +24,9 @@
 
 {
     // Добавим контекстные свойства
-     m_engine->rootContext()->setContextProperty("candleModel", m_candleModel);
+    m_engine->rootContext()->setContextProperty("controller", this);
+    m_engine->rootContext()->setContextProperty("candleModel", m_candleModel);
+    m_engine->rootContext()->setContextProperty("chartManager", m_chartManager);
 
     // Подключаем сигналы
     connect(m_processor, &DataProcessor::dataProcessed, this, &MainController::updateChart);
@@ -63,28 +65,55 @@
     // Подключаем сигналы биржи
     connect(m_exchangeClient, &ExchangeClient::candlesLoaded,
             [this](const QList<CandleData>& candles) {
-                m_candleModel->setCandles(candles);
-                qDebug() << "Candles loaded:" << candles.size();
-                // Обновляем график через ChartManager
-                m_chartManager->updateSeries(m_candleModel);
-                // Сигнал для QML что данные обновлены
-                emit candlesUpdated();
-    });
+                QMetaObject::invokeMethod(this, [this, candles]() {  // Используем QueuedConnection для избежания гонок
 
-    connect(m_exchangeClient, &ExchangeClient::newCandle,
+                    // Устанавливаем исторические свечи в модель и график
+                    m_candleModel->setCandles(candles);
+                    qDebug() << "Candles loaded:" << candles.size();
+                    // Обновляем график через ChartManager
+                     m_chartManager->updateSeries(m_candleModel);
+                     // Сигнал для QML что данные обновлены
+                     emit candlesUpdated();
+
+                     qDebug() << "History loaded:" << candles.size() << "candles";
+
+                     // Запуск WebSocket (История точно загружена и отрисована)
+                     // Теперь можно безопасно подключать WebSocket для живых тиков.
+                     QString currentSymbol = m_exchangeClient->symbol();
+                     Interval currentInterval = m_exchangeClient->interval();
+
+                     if (!m_exchangeClient->isRealtimeConnected()) {
+                         m_exchangeClient->startRealtimeUpdates(currentSymbol, currentInterval);
+                         qDebug() << "WebSocket starter after history loaded!";
+                     }
+
+                   }, Qt::QueuedConnection);
+    });
+     // WebSocket обновление в реальном времени
+    connect(m_exchangeClient, &ExchangeClient::newCandleTick,
             [this](const CandleData& candle) {
-                m_candleModel->addCandle(candle);
-                qDebug() << "New candle added:" << candle.openTime;
-                // Обновляем график через ChartManager
-                m_chartManager->updateSeries(m_candleModel);
-                // Сигнал для QML
-                emit candlesUpdated();
+                QMetaObject::invokeMethod(this, [this, candle]() { // Используем QueuedConnection для избежания гонок
+                    // Обновляем модель и график на лету
+                    m_candleModel->addOrUpdateCandle(candle);
+                    qDebug() << "New candle added:" << candle.openTime;
+                    // Обновляем график через ChartManager
+                    m_chartManager->updateLastCandle(candle);
+                    // Сигнал для QML
+                    emit candlesUpdated();
+                   }, Qt::QueuedConnection);
 
     });
 
+    // Ошибки
     connect(m_exchangeClient, &ExchangeClient::errorOccurred,
             [](const QString& error) {
                 qDebug() << "Exchange error:" << error;
+    });
+
+    // Статус подключения
+    connect(m_exchangeClient, &ExchangeClient::connectionStatusChanged,
+            [](bool connected) {
+qDebug() << "Exchange connection status:" << (connected ? "Connected" : "Disconnected");
     });
 
         // Загружаем пароль БД из безопасной папки
@@ -402,16 +431,42 @@ void MainController::addCandle(double open, double high, double low, double clos
 
 void MainController::loadCandles(const QString& symbol, int intervalIndex, int limit)
 {
-    if (m_exchangeClient) {
-        Interval interval = static_cast<Interval>(intervalIndex);
-        m_exchangeClient->loadHistory(symbol, interval, limit);
-        qDebug() << "Loading candles for" << symbol << "limit:" << limit;
+    if (!m_exchangeClient) return;
+
+    // Защита от спама одной и той же кнопкой
+    if (m_exchangeClient->symbol() == symbol && m_candleModel->rowCount() > 0) {
+        qDebug() << "Already loaded, skipping...";
+        return;
     }
+    // Останавливаем старый WebSocket
+    if (m_exchangeClient->isRealtimeConnected()) {
+        m_exchangeClient->stopRealtimeUpdates();
+        qDebug() << "Stoppped old WebSocket connection";
+    }
+
+    // Очищаем данные
+    m_candleModel->clear();
+    m_chartManager->clearSeries();
+    emit clearGraphRequested();
+
+    // Запускаем толькот загрузку истории. WebSocket будет запущен после истроии
+    Interval interval = static_cast<Interval>(intervalIndex);
+
+    // Загружаем историю через REST
+    m_exchangeClient->loadHistory(symbol, interval, limit);
+
+
+    qDebug() << "Loaded candles for" << symbol << "limit:" << limit;
 }
 
 void MainController::startRealtimeCandles(const QString& symbol, int intervalIndex)
 {
     if (m_exchangeClient) {
+        // Проверяем, не подключены ли уже
+        if (m_exchangeClient->isRealtimeConnected()) {
+            qDebug() << "WebSocket already connected to" << symbol;
+            return;
+        }
         Interval interval = static_cast<Interval>(intervalIndex);
         m_exchangeClient->startRealtimeUpdates(symbol, interval);
         qDebug() << "Realtime candles started for" << symbol;

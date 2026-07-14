@@ -37,6 +37,7 @@ public:
     Q_INVOKABLE void clear();
     Q_INVOKABLE CandleData getCandle(int index) const;
     Q_INVOKABLE QVariantMap get(int row) const;
+    Q_INVOKABLE void addOrUpdateCandle(const CandleData& candle);
 
 signals:
     void countChanged();

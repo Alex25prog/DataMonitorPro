@@ -4,7 +4,8 @@
 #include <QObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
-#include <QTimer>
+#include <QtWebSockets/QWebSocket>
+//#include <QTimer>
 #include "../models/CandleData.h"
 
 // Интервалы свечей
@@ -27,33 +28,54 @@ public:
     ~ExchangeClient();
 
     // Остновные методы
-    void loadHistory(const QString& symbol, Interval interval, int limit = 100);
+    void loadHistory(const QString& symbol, Interval interval, int limit = 100); // REST API загрузка истории
+
+    // WebSocket реальное время
     void startRealtimeUpdates(const QString& symbol, Interval interval);
     void stopRealtimeUpdates();
+    bool isRealtimeConnected() const;
+
+    // Утилиты
     void setSymbol(const QString& symbol) { m_symbol = symbol; }
     QString symbol() const { return m_symbol;}
+    static QString intervalToString(Interval interval);
+    Interval interval() const { return m_interval; }
 
 
 signals:
     void candlesLoaded(const QList<CandleData>& candles);
-    void newCandle(const CandleData& candle);
+    void newCandleTick(const CandleData& candle);
     void errorOccurred(const QString& error);
+    void connectionStatusChanged(bool connected);
 
 private slots:
-    void onReplyFinished(QNetworkReply* reply);
-    void onRealtimeUpdate();
+    //  REST API
+    void onRestReplyFinished(QNetworkReply* reply);
+    //void onRealtimeUpdate();
+
+
+    // WebSocket
+    void onWebSocketConnected();
+    void onWebSocketTextMessageReceived(const QString& message);
+    void onWebSocketDisconnected();
+    void onWebSocketError(QAbstractSocket::SocketError error);
 
 private:
-    QNetworkAccessManager* m_manager;
-    QTimer* m_realtimeTimer;
-    QString m_symbol;
-    Interval m_interval;
-    bool m_isRealtimeRunning = false;
-    qint64 m_lastCandleTime = 0;
-
-    // Вспомогательные методы
-    QString intervalToString(Interval interval) const;
+    // Впомогательные методы
     QList<CandleData> parseCandles(const QByteArray& data);
     void fetchCandles(const QString& symbol, Interval interval, int limit);
+
+    // REST
+    QNetworkAccessManager* m_networkManager;
+
+    // WebSocket
+    QWebSocket* m_webSocket;
+    bool m_isRealtimeConnected = false;
+
+    // Состояние
+    QString m_symbol;
+    Interval m_interval;
+    qint64 m_lastCandleTime = 0;
+
  };
 #endif // EXCHANGECLIENT_H

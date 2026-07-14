@@ -79,8 +79,10 @@ void CandleModel::clear()
 
 CandleData CandleModel::getCandle(int index) const
 {
-    if (index < 0 || index >= m_candles.size())
+    if (index < 0 || index >= m_candles.size()) {
         return CandleData();
+        qDebug() << "CandleModel: invalid index" << index << ", size:" << m_candles.size();
+    }
     return m_candles[index];
 }
 
@@ -112,4 +114,33 @@ void CandleModel::setCandles(const QList<CandleData>& candles)
     endResetModel();
     emit countChanged();
     qDebug() << "CandleMosel: set" << m_candles.size() << "candles";
+}
+
+void CandleModel::addOrUpdateCandle(const CandleData& candle)
+{
+    // Ищем существующую свечу с таким же временем
+    for (int i = 0; i < m_candles.size(); ++i) {
+        if (m_candles[i].openTime == candle.openTime) {
+            // Обновляем существующую
+            if (candle.isClosed) {
+                m_candles[i] = candle;
+            } else {
+                m_candles[i].high = candle.high;
+                m_candles[i].low = candle.low;
+                m_candles[i].close = candle.close;
+                m_candles[i].volume = candle.volume;
+            }
+            QModelIndex idx = index(i);
+            emit dataChanged(idx, idx);
+            emit countChanged();
+            return;
+        }
+    }
+
+    // Если свечи нет — добавляем новую
+    beginInsertRows(QModelIndex(), m_candles.size(), m_candles.size());
+    m_candles.append(candle);
+    endInsertRows();
+    emit countChanged();
+    emit dataAdded();
 }

@@ -20,74 +20,62 @@ ApplicationWindow {
     property bool showWeatherGraph: true
     property bool showTradingGraph: false
 
-    // Функция обновления биржевого графика из модели
+    property bool updatingAxes: false
 
-    function updateTradingChart() {
-        console.log("=== Update trading chart ===")
-        console.log("Candles in model:", candleModel ? candleModel.count : 0)
+    // Используем только обновление осей
 
-        if (!candleModel || candleModel.count === 0) {
-            console.log("No candles in model")
-            return
-        }
+    function updateAxes() {
+       if (updatingAxes) {
+          console.log("updateAxes: already running, skipping...")
+          return
+    }
+       updatingAxes = true
 
-        // Очищаем серию
-        candlestickSeries.clear()
-
-        var minPrice = Infinity
-        var maxPrice = -Infinity
-        var firstTime = null
-        var lastTime = null
-
-        // Используем правильный способ: создаем CandlestickSet
-        for (var i = 0; i < candleModel.count; i++) {
-            var c = candleModel.get(i)
-
-
-            if (!c) {
-                console.log("Invalid candle at index", i)
-                continue
+            if (!candleModel || candleModel.count === 0) {
+                updatingAxes = false
+                console.log("No candles for axes update")
+                return
             }
 
-            // В Qt 6.8 объект создается через CandlestickSet
-            // и добавляется через append(set)
+            var minPrice = Infinity
+            var maxPrice = -Infinity
+            var firstTime = null
+            var lastTime = null
 
-            var set = Qt.createQmlObject(
-                'import QtCharts; CandlestickSet { timestamp: ' + c.openTime +
-                '; open: ' + c.open +
-                '; high: ' + c.high +
-                '; low: ' + c.low +
-                '; close: ' + c.close + ' }',
-                candlestickSeries,
-                "candlestickSet"
-            )
-            candlestickSeries.append(set)
+            for (var i = 0; i < candleModel.count; i++) {
+                var c = candleModel.get(i)
+                if (!c) continue
 
-            if (c.low < minPrice) minPrice = c.low
-            if (c.high > maxPrice) maxPrice = c.high
+                if (c.low < minPrice) minPrice = c.low
+                if (c.high > maxPrice) maxPrice = c.high
+                if (i === 0) firstTime = c.openTime
+                if (i === candleModel.count - 1) lastTime = c.closeTime
+            }
 
-            if (i === 0) firstTime = c.openTime
-            if (i === candleModel.count - 1) lastTime = c.closeTime
+            if (minPrice === Infinity || maxPrice === -Infinity) {
+                updatingAxes = false
+                return
+            }
+
+            // Надежная конвертация времени для оси Х
+            // Используем Number(), чтобы гарантировать правильный тип для new Date()
+            var safeFirstTime = Number(firstTime)
+            var safeLastTime = Number(lastTime)
+
+
+            axisX.min = new Date(safeFirstTime)
+            axisX.max = new Date(safeLastTime + 3600000)
+
+            var margin = (maxPrice - minPrice) * 0.1
+            if (margin === 0) margin = 10
+
+            axisY.min = minPrice - margin
+            axisY.max = maxPrice + margin
+
+            console.log("Axes updated! Min:", axisY.min, "Max:", axisY.max)
+
+            updatingAxes = false
         }
-
-        console.log("CandlestickSeries count after append:", candlestickSeries.count)
-
-        if (minPrice === Infinity || maxPrice === -Infinity) {
-            console.log("No valid candles found")
-            return
-        }
-
-        axisX.min = new Date(firstTime)
-        axisX.max = new Date(lastTime + 3600000)
-
-        var margin = (maxPrice - minPrice) * 0.1
-        if (margin === 0) margin = 10
-        axisY.min = minPrice - margin
-        axisY.max = maxPrice + margin
-
-        console.log("Chart update! Candles:", candleModel.count,
-                    "Min price:", axisY.min, "Max price:", axisY.max)
-    }
 
     // Обработчик смены языка
     onCurrentLocaleChanged: {
@@ -222,6 +210,17 @@ ApplicationWindow {
         // Если это обычный клик пользователя по новой стране - сбрасываем город
         citySelect.currentIndex = 0
         controller.setCity("")
+    }
+
+    // Таймер для защиты от спама
+    Timer {
+        id: loadDebounceTimer
+        interval: 1500
+        repeat: false
+        onTriggered: {
+            loadBtcButton.enabled = true
+            loadBtcButton.isLoading = false
+        }
     }
 
     ColumnLayout {
@@ -398,7 +397,7 @@ ApplicationWindow {
                 onClicked: {
                     showWeatherGraph = false
                     showTradingGraph = true
-                    updateTradingChart()
+                    updateAxes()
                 }
             }
 
@@ -948,20 +947,28 @@ ApplicationWindow {
                 CandlestickSeries {
                     id: candlestickSeries
                     name: qsTr("Price")
+                    axisX: axisX // Привязка осей
+                    axisY: axisY
                     increasingColor: "#26a69a"
                     decreasingColor: "#ef5350"
+                    // Защита от схлопывания свечей
                     bodyWidth: 0.7
                     maximumColumnWidth: 30
                     minimumColumnWidth: 5
-                    axisX: axisX
-                    axisY: axisY
 
-                    // Используем модель для добавления свечей
-                    //onCountChanged: {
-                        // Автоматическое масштабирование
-                    //}
+
+                    // Отдаем управление серией в С++
+                    Component.onCompleted: {
+                        if (chartManager) {
+                            chartManager.attachSeries(candlestickSeries)
+                            console.log("CandlestickSeries attached to chartManager")
+                    } else {
+                       console.log("ERROR: chartManager is null!")
+
+                   }
                 }
-                // Кнопки управления
+             }
+                // Кнопки управления с защитой от спама
                 Row {
                     spacing: 10 // Отступ между кнопками в пикселях
                     anchors.top: parent.top
@@ -970,25 +977,42 @@ ApplicationWindow {
                     z: 10
 
                 Button {
-                    text: "Load BTCUSDT"
+                    id: loadBtcButton
+                    property bool isLoading: false
+
+                    text: isLoading ? qsTr("Loading...") : qsTr("Load BTCUSD")
+                    enabled: !isLoading
+
                     background: Rectangle {
-                        color: "#1565c0"
+                        color: loadBtcButton.enabled ? "#1565c0" : "#666666"
                         radius: 5
-                        opacity: parent.pressed ? 0.7 : 1.0
+                        opacity: parent.pressed && loadBtcButton.enabled ? 0.7 : 1.0
                     }
 
                     contentItem: Text {
-                        text: parent.text
+                        text: loadBtcButton.text
                         color: "white"
                         font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
                     }
 
-                    onClicked:
+                    onClicked: {
+                        if (isLoading) return
+
+                        isLoading = true
+                        enabled = false
+
                         controller.loadCandles("BTCUSDT", 4, 100) // 4 = H1
+                        loadDebounceTimer.start()
                 }
+            }
 
                 Button {
-                    text: "Start Realtime"
+                    id: startRealtimeButton
+                    text: qsTr("Start Realtime")
+                    enabled: !controller.exchangeClient || !controller.exchangeClient.isRealtimeConnected // Блокировка кнопки от повторного нажатия
+
                     background: Rectangle {
                         color: "#2e7d32"
                         radius: 5
@@ -996,7 +1020,7 @@ ApplicationWindow {
                     }
 
                     contentItem: Text {
-                        text: parent.text
+                        text: startRealtimeButton.text
                         color: "white"
                         font.bold: true
                     }
@@ -1160,7 +1184,7 @@ ApplicationWindow {
             tempSeries.clear()
             pressSeries.clear()
             humSeries.clear()
-            candlestickSeries.clear()
+            //candlestickSeries.clear() // Не вызываем это делает С++
             movingAverageSeries.clear()
 
             // Сбрасываем оси погоды
@@ -1242,22 +1266,58 @@ ApplicationWindow {
                    weatherChart.update();
         }
 
+        // Только обновление осей, свечи уже обновлены в С++
+
         function onCandlesUpdated() {
-            console.log("=== CandlesUpdated signal received ===")
-            updateTradingChart()
+            console.log("=== Signal: candlesUpdated ===")
+            // Вызываем метод С++ менеджера
+            //chartManager.updateSeries(candleModel)
+
+            // Масштабируем оси, основываясь на данных модели
+            updateAxes()
         }
     }
 
-    // Следим за изменением модели
-    Connections {
-        target: candleModel
+    // Следим за изменением модели, только оси.
 
-        function onCountChanged() {
-            console.log("=== CandleModel count changed to:", candleModel.count, "===")
-            if (showTradingGraph) {
-                updateTradingChart()
+   // Connections {
+            //target: candleModel
+
+            //function onCountChanged() {
+                //console.log("=== CandleModel count changed to:", candleModel.count, "===")
+                //if (showTradingGraph) {
+                    // Свечи уже обновлены через TradingChartManager в C++
+                    // Обновляем только оси
+                    //updateAxes()
+                //}
+            //}
+        //}
+
+        // СИГНАЛ ОТ TradingChartManager — ОБНОВЛЕНИЕ ОСЕЙ + ПЕРЕРИСОВКА
+        Connections {
+            target: chartManager
+
+            function onSeriesUpdated() {
+                console.log("=== ChartManager: seriesUpdated ===")
+                updateAxes()
+
+                // Заставляем QML перерисовать геометрию серии
+                // Это безопасно и не требует доступа к С++ объектам
+
+                candlestickSeries.visible = false
+                candlestickSeries.visible = true
+
+                console.log("CandlestickSeries redraw triggered")
             }
         }
+
+        // ОТЛАДКА — ПРОВЕРКА КОНТЕКСТНЫХ СВОЙСТВ
+        Component.onCompleted: {
+            console.log("=== Component completed ===")
+            console.log("controller:", controller)
+            console.log("candleModel:", candleModel)
+            console.log("chartManager:", chartManager)
+            console.log("candlestickSeries:", candlestickSeries)
+        }
     }
 
-}
