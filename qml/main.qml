@@ -964,7 +964,6 @@ ApplicationWindow {
 
                 Button {
                     id: loadBtcButton
-                    //property bool isLoading: false
 
                     text: controller.isLoading ? qsTr("Loading...") : qsTr("Load BTCUSD")
                     enabled: !controller.isLoading
@@ -986,9 +985,6 @@ ApplicationWindow {
                     onClicked: {
                         if (controller.isLoading) return // Проверка через С++
 
-                        //isLoading = true
-                        //enabled = false
-
                         controller.loadCandles("BTCUSDT", 4, 100) // 4 = H1
                         //loadDebounceTimer.start()
                 }
@@ -996,11 +992,11 @@ ApplicationWindow {
 
                 Button {
                     id: startRealtimeButton
-                    text: qsTr("Start Realtime")
-                    enabled: !controller.exchangeClient || !controller.exchangeClient.isRealtimeConnected // Блокировка кнопки от повторного нажатия
+                    text: controller.isRealtimeConnected ? qsTr("Stop Realtime") : qsTr("Start Realtime")
+                    //enabled: !controller.exchangeClient || !controller.exchangeClient.isRealtimeConnected // Блокировка кнопки от повторного нажатия
 
                     background: Rectangle {
-                        color: "#2e7d32"
+                        color: controller.isRealtimeConnected ? "##c62828" : "#2e7d32"
                         radius: 5
                         opacity: parent.pressed ? 0.7 : 1.0
                     }
@@ -1011,10 +1007,15 @@ ApplicationWindow {
                         font.bold: true
                     }
 
-                    onClicked:
-                        controller.startRealtimeCandles("BTCUSDT", 4)
+                    onClicked: {
+                        if (controller.isRealtimeConnected) {
+                            controller.stopRealtime()
+                        } else {
+                            controller.startRealtime()
+                        }
                     }
                 }
+            }
 
                 LineSeries {
                     id: movingAverageSeries

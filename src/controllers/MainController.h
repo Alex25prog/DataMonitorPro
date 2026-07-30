@@ -37,6 +37,7 @@ class MainController : public QObject
     Q_PROPERTY(bool isWeatherRunning READ isWeatherRunning NOTIFY weatherRunningChanged)
     Q_PROPERTY(bool isCitySelected READ isCitySelected NOTIFY citySelectedChanged)
     Q_PROPERTY(bool isLoading READ isLoading NOTIFY isLoadingChanged)
+    Q_PROPERTY(bool isRealtimeConnected READ isRealtimeConnected NOTIFY realtimeConnectedChanged)
 
     // Информационная панель биржи
     Q_PROPERTY(QString currentPrice READ currentPrice NOTIFY currentPriceChanged)
@@ -62,6 +63,7 @@ public:
     bool isWeatherRunning() const { return m_weatherRunning; }
     bool isCitySelected() const { return m_citySelected; }
     bool isLoading() const { return m_isLoadingCandles; }
+    bool isRealtimeConnected() const { return m_exchangeClient && m_exchangeClient->isRealtimeConnected(); }
     TradingChartManager* chartManager() const { return m_chartManager; }
     CandleModel* candleModel() const { return m_candleModel; }
 
@@ -103,10 +105,11 @@ public:
     // Биржа (НОВЫЙ API)
     Q_INVOKABLE void loadCandles(const QString& symbol, int intervalIndex, int limit = 100);
 
-    // Устаревшие методы (оставлены для совместимости, но не используются)
+    // Устаревший метод (оставлен для совместимости, но не используется)
     Q_INVOKABLE void addCandle(double open, double high, double low, double close, const QString& timestamp);
-    Q_INVOKABLE void startRealtimeCandles(const QString& symbol, int intervalIndex);
-    Q_INVOKABLE void stopRealtimeCandles();
+
+    Q_INVOKABLE void startRealtime(); // Явное подключение WebSocket к уже загруженному рынку
+    Q_INVOKABLE void stopRealtime();  // Явное отключение WebSocket
 
 signals:
     // Сервер
@@ -125,6 +128,7 @@ signals:
     // Биржа
     void candlesUpdated();
     void isLoadingChanged();
+    void realtimeConnectedChanged();
 
     // Информационная панель биржи
     void currentPriceChanged();
@@ -197,9 +201,8 @@ private:
     // Список свечей (для совместимости)
     QList<CandleData> m_candles;
 
-    // ============================================================
+
     // ДАННЫЕ ДЛЯ ИНФОРМАЦИОННЫХ ПАНЕЛЕЙ
-    // ============================================================
 
     // Биржа
     QString m_currentPrice;

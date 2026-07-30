@@ -66,8 +66,10 @@ MainController::MainController(QQmlApplicationEngine* engine, QObject *parent)
 
     // Статус подключения
     connect(m_exchangeClient, &ExchangeClient::connectionStatusChanged,
-            this, [](bool connected) {
+            this, [this](bool connected) {
                 qDebug() << "Exchange connection status:" << (connected ? "Connected" : "Disconnected");
+
+                emit realtimeConnectedChanged();
             });
 
 
@@ -418,7 +420,7 @@ void MainController::onCandlesLoaded(const QList<CandleData>& candles)
     m_isLoadingCandles = false;
     emit isLoadingChanged();
 
-    qDebug() << "History loaded:" << candles.size() << "candles, WebSocket will be opened by ExchangeClient";
+    qDebug() << "History loaded:" << candles.size() << "candles";
 }
 
 void MainController::onNewCandleTick(const CandleData& candle)
@@ -467,23 +469,16 @@ void MainController::addCandle(double open, double high, double low, double clos
     qDebug() << "Candle added:" << timestamp << "O:" << open << "H:" << high << "L:" << low << "C:" << close;
 }
 
-void MainController::startRealtimeCandles(const QString& symbol, int intervalIndex)
+void MainController::startRealtime()
 {
-    // Этот метод устарел. Теперь всё управление через loadCandles()
-    // который вызывает ExchangeClient::loadMarket()
-    qDebug() << "startRealtimeCandles is deprecated."
-             << "Use loadCandles(" << symbol << "," << intervalIndex << ") instead.";
-
-    // Просто вызываем loadCandles с тем же символом и интервалом
-    // и стандартным лимитом 100
-    loadCandles(symbol, intervalIndex, 100);
+    if (!m_exchangeClient) return;
+    m_exchangeClient->startRealtime();
 }
 
-void MainController::stopRealtimeCandles()
+void MainController::stopRealtime()
 {
-    // Теперь управление через ExchangeClient::loadMarket
-    // Этот метод можно удалить или оставить как заглушку
-    qDebug() << "stopRealtimeCandles is deprecated - use loadCandles with new symbol";
+    if (!m_exchangeClient) return;
+    m_exchangeClient->stopRealtime();
 }
 
 void MainController::updateTickerInfo(const CandleData& candle)

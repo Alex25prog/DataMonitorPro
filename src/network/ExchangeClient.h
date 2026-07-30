@@ -29,8 +29,12 @@ public:
     explicit ExchangeClient(QObject *parent = nullptr);
     ~ExchangeClient();
 
-    // Единый публичный метод
+    // Единый публичный метод, только загрузка истории (REST)
     void loadMarket(const QString& symbol, Interval interval, int limit = 100);
+
+    // Явное управление реалтайм-подпиской (WebSocket), отдельно от загрузки и истории
+    void startRealtime();
+    void stopRealtime();
 
     // Статус
     bool isRealtimeConnected() const;

@@ -22,7 +22,8 @@ ExchangeClient::~ExchangeClient()
 }
 
 
-// Публичный метод
+// Публичный метод - загружает только историю по REST
+// Подключение WebSocket теперь управляет явно startRealtime()/stopRealtime()
 void ExchangeClient::loadMarket(const QString& symbol, Interval interval, int limit)
 {
     if (symbol.isEmpty()) {
@@ -30,18 +31,14 @@ void ExchangeClient::loadMarket(const QString& symbol, Interval interval, int li
         return;
     }
 
-    // Если тот же символ и интервал, и WebSocket уже работает — только история
-    if (symbol == m_symbol && interval == m_interval && isRealtimeConnected()) {
-        qDebug() << "Same market, loading history only...";
-        setState(ClientState::LoadingHistory);
-        fetchHistory(symbol, interval, limit);
-        return;
-    }
+    bool marketChanged = (symbol != m_symbol || interval != m_interval);
 
-    // Иначе — полная смена рынка
-    qDebug() << "Switching market to" << symbol << intervalToString(interval);
+    if (marketChanged) {
+        qDebug() << "Switching market to" << symbol << intervalToString(interval);
 
-    // Закрываем старый WebSocket, если есть
+
+    // Старый WebSocket подписан на другой символ/интервал(он больше не актуален)
+    // Закрываем старый WebSocket, но не открываем новый автоматически
     if (m_webSocket) {
         closeRealtime();
     }
@@ -49,11 +46,40 @@ void ExchangeClient::loadMarket(const QString& symbol, Interval interval, int li
     // Обновляем параметры
     m_symbol = symbol;
     m_interval = interval;
+  }
 
     // Загружаем историю (после её загрузки запустится WebSocket)
     setState(ClientState::LoadingHistory);
     fetchHistory(symbol, interval, limit);
 }
+
+    void ExchangeClient::startRealtime()
+{
+        if (m_symbol.isEmpty()) {
+            emit errorOccurred("No market loaded yet");
+            return;
+        }
+
+        if (isRealtimeConnected()) {
+            qDebug() << "Realtime already connected";
+            return;
+        }
+
+        qDebug() << "Starting realtime for" << m_symbol << intervalToString(m_interval);
+        openRealtime(m_symbol, m_interval);
+}
+
+void ExchangeClient::stopRealtime()
+{
+    if (!m_webSocket) {
+        qDebug() <<"Realtime already stopped";
+        return;
+    }
+
+    qDebug() << "Stopping realtime";
+    closeRealtime();
+    setState(ClientState::Idle);
+  }
 
 
 // REST (история)
@@ -109,13 +135,9 @@ void ExchangeClient::onRestReplyFinished(QNetworkReply* reply)
         return;
     }
 
-    // После загрузки истории — открываем WebSocket, если ещё не открыт
-    if (!isRealtimeConnected()) {
-        qDebug() << "Opening WebSocket for" << m_symbol << intervalToString(m_interval);
-        openRealtime(m_symbol, m_interval);
-    }
-
-    setState(ClientState::Connected);
+    // WebSocket больше не открывается автоматически здесь
+    // Для этого есть отдельный метод startRealtime()
+    setState(isRealtimeConnected() ? ClientState::Connected : ClientState::Idle);
 }
 
 
@@ -187,7 +209,7 @@ void ExchangeClient::scheduleReconnect()
 
     QTimer::singleShot(3000, this, [this]() {
         if (!isRealtimeConnected() && m_state != ClientState::Error) {
-            qDebug() << "🔄 Auto-reconnecting...";
+            qDebug() << "Auto-reconnecting...";
             openRealtime(m_symbol, m_interval);
         }
     });
@@ -203,14 +225,14 @@ void ExchangeClient::onWebSocketConnected()
         return;
     }
 
-    qDebug() << "✅ WebSocket" << static_cast<void*>(m_webSocket.data()) << "connected";
+    qDebug() << "WebSocket" << static_cast<void*>(m_webSocket.data()) << "connected";
     emit connectionStatusChanged(true);
     setState(ClientState::Connected);
 }
 
 void ExchangeClient::onWebSocketDisconnected()
 {
-    qDebug() << "❌ WebSocket disconnected";
+    qDebug() << "WebSocket disconnected";
     emit connectionStatusChanged(false);
 
     if (!m_manualClose) {
