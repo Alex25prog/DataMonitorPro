@@ -229,15 +229,13 @@ ApplicationWindow {
         RowLayout {
             spacing: 5
 
-            Column {
-                Layout.alignment: Qt.AlignVCenter
-                spacing: 2
-
                 // Start/Stop Server кнопка
                 Button {
                     id: serverButton
                     implicitWidth: Math.max(85, contentItem.implicitWidth + 5)
-                    implicitHeight: 45
+                    //implicitHeight: 45
+                    //anchors.top: parent.top
+                    //anchors.left: parent.left
 
                     background: Rectangle {
                         color: controller.isServerRunning ? "#2e7d32" : "#1565c0"
@@ -262,15 +260,6 @@ ApplicationWindow {
                         }
                     }
                 }
-
-                Text {
-                    id: serverStatusLabel
-                    text: controller.isServerRunning ? qsTr("● Server Running") : qsTr("○ Server Stopped")
-                    color: controller.isServerRunning ? "#4caf50" : "#f44336"
-                    font.pixelSize: 9
-                    horizontalAlignment: Text.AlignHCenter
-                }
-            }
 
             // Clear Data кнопка
             Button {
@@ -1560,7 +1549,7 @@ ApplicationWindow {
                            Label {
                                id: statusServer
                                text: qsTr("Server:") + " " + (controller.isServerRunning ? qsTr("Active") : qsTr("Inactive"))
-                               color: "#B22222"
+                               color: controller.isServerRunning ? "#4caf50" : "#f44336"
                            }
                            Label { text: "|" }
                            Label { text: qsTr("Database: PostgreSQL"); color: "#B22222" }
