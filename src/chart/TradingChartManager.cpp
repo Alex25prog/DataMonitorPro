@@ -2,13 +2,9 @@
 #include <QtCharts/QCandlestickSet>
 #include <QDebug>
 
-// используем пространство имен Qt Charts
-//QT_CHARTS_USE_NAMESPACE
-
 TradingChartManager::TradingChartManager(QObject *parent)
     : QObject(parent)
     , m_updating(false)
-
 {
     qDebug() << "TradingChartManager created";
 }
@@ -20,31 +16,34 @@ TradingChartManager::~TradingChartManager()
 
 void TradingChartManager::attachSeries(QCandlestickSeries* series)
 {
-    // Защита от передачи пустышки
     if (!series) {
-        qWarning() << "TradingChartManager: Attemted to attach a null series!";
+        qWarning() << "TradingChartManager: Attempted to attach a null series!";
         return;
     }
 
-    // Защита от дублирования: проверяем, не этот ли самый график уже привязан
-    // Используем data() для безопасного сравнения адресов
     if (m_series.data() == series) {
         qDebug() << "TradingChartManager: This series is already attached.";
         return;
     }
 
-    // Если привязывается новая серия, очищаем старую (если она еще жива)
     if (m_series) {
         qDebug() << "TradingChartManager: Detaching old series and attaching a new one.";
         clearSeries();
     }
+
     m_series = series;
+
+    // Отключаем анимации для стабильности
+    if (m_series) {
+        // В Qt 6.8 это свойство может отсутствовать у QCandlestickSeries
+        // m_series->setAnimationOptions(QChart::NoAnimation);
+    }
+
     qDebug() << "TradingChartManager: QML series successfully attached!";
 }
 
 void TradingChartManager::updateSeries(CandleModel* model)
 {
-    // Защита от рекурсивного вызова
     if (m_updating) {
         qDebug() << "TradingChartManager: Already updating, skipping...";
         return;
@@ -62,71 +61,72 @@ void TradingChartManager::updateSeries(CandleModel* model)
 
     m_updating = true;
 
-    // Очищаем старые данные. clear() сам безопасно уведомит UI
-    auto oldSets = m_series->sets();
+
     m_series->clear();
-    qDeleteAll(oldSets);
 
     int count = model->rowCount();
     qDebug() << "TradingChartManager: Updating series with" << count << "candles";
 
     if (count > 0) {
-        // Создаем временный список для свечей
         QList<QCandlestickSet*> newSets;
-        newSets.reserve(count); // Резервируем память для производительности
+        newSets.reserve(count);
 
-    // Создаем свечи напрямую в С++
-    for (int i = 0; i <count; ++i) {
-        CandleData candle = model->getCandle(i);
+        for (int i = 0; i < count; ++i) {
+            CandleData candle = model->getCandle(i);
 
-        // Используем m_series.data() чтобы передать чистый QObject*
-        QCandlestickSet* set = new QCandlestickSet(
-            candle.open,
-            candle.high,
-            candle.low,
-            candle.close,
-            static_cast<qreal>(candle.openTime),
-            m_series.data()
-        );
+            QCandlestickSet* set = new QCandlestickSet(
+                candle.open,
+                candle.high,
+                candle.low,
+                candle.close,
+                static_cast<qreal>(candle.openTime),
+                m_series.data()
+                );
+            newSets.append(set);
+        }
 
-        newSets.append(set);
+        m_series->append(newSets);
+        qDebug() << "TradingChartManager: Appended" << newSets.size() << "candles in batch";
     }
-
-    // Для мгновенной отрисовки всех свечей без зависаний и крашей
-    m_series->append(newSets);
-
-    qDebug() << "TradingChartManager: Appended" << newSets.size() << "candles in batch";
-}
 
     qDebug() << "TradingChartManager: series now has" << m_series->count() << "candles";
 
     m_updating = false;
-    emit seriesUpdated(); // QML сделает updateAxes() и перерисовку
+    emit seriesUpdated();
 }
 
 void TradingChartManager::clearSeries()
 {
-    if (!m_series) return;
+    if (!m_series) {
+        return;
+    }
 
-    auto oldSets = m_series->sets();
+
+    // clear() УЖЕ УДАЛЯЕТ все sets, НЕ НАДО ДЕЛАТЬ qDeleteAll
+
     m_series->clear();
-    qDeleteAll(oldSets);
-    //m_series->blockSignals(false);
 
     qDebug() << "TradingChartManager: series cleared";
 }
 
 void TradingChartManager::updateLastCandle(const CandleData& candle)
 {
-    if (!m_series){
+    if (!m_series) {
         qDebug() << "TradingChartManager: series not attached!";
         return;
     }
 
+    if (m_updating) {
+        qDebug() << "TradingChartManager: Already updating, skipping...";
+        return;
+    }
+
+    m_updating = true;
+
     auto sets = m_series->sets();
 
     if (sets.isEmpty()) {
-        // Если нет свечей — добавляем первую
+        // Первая свеча
         QCandlestickSet* set = new QCandlestickSet(
             candle.open,
             candle.high,
@@ -138,6 +138,7 @@ void TradingChartManager::updateLastCandle(const CandleData& candle)
         m_series->append(set);
         qDebug() << "TradingChartManager: first candle added via WebSocket";
         emit seriesUpdated();
+        m_updating = false;
         return;
     }
 
@@ -166,4 +167,5 @@ void TradingChartManager::updateLastCandle(const CandleData& candle)
     }
 
     emit seriesUpdated();
+    m_updating = false;
 }

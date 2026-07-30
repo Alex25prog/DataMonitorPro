@@ -7,45 +7,45 @@
 #include <QQuickStyle>
 #include "src/core/LanguageManager.h"
 #include "src/models/CandleData.h"
+#include <QSslSocket>
+
 
 // Функция для регистрация типа
 static void registerTypes() {
     qRegisterMetaType<CandleData>("CandleData");
     qRegisterMetaType<QList<CandleData>>("QList<CandleData>");
+    qRegisterMetaType<QVariantList>("QVariantList");
 }
 int main(int argc, char *argv[])
 {
+    // Регистрируем типы до создания QApplication
     registerTypes();
 
-    qputenv("QSG_RHI_BACKEND", "opengl");
+    //qputenv("QSG_RHI_BACKEND", "opengl");
     qputenv("QT_QUICK_CONTROLS_CONF", ":/qtquickcontrols2.conf");
     QQuickStyle::setStyle("Material");
-    //qputenv("QT_QUICK_CONTROLS_MATERIAL_THEME", "Dark");//Включить темную тему
+
     QApplication app(argc, argv);
+
+    qDebug() << "DataMonitorPro Startup";
+    qDebug() << "SSL supported:" << QSslSocket::supportsSsl();
+    qDebug() << "SSL version:" << QSslSocket::sslLibraryVersionString();
     qDebug() << "Доступные SQL драйверы:" << QSqlDatabase::drivers();
 
-    qDebug() << "1";
 
     QQmlApplicationEngine engine;
-    qDebug() << "2";
 
-    //Регистрируем GraphWidget для QML
-    //qmlRegisterType<GraphWidget>("DataMonitorPro", 1, 0, "GraphWidget");
-    
     // Создаем контроллер в HEAP
     MainController* controller = new MainController(&engine);
-    qDebug() << "3";
 
     //регистрируем контроллер в QML под именем "controller"
     engine.rootContext()->setContextProperty("controller", controller);
 
     // Инициализация LanguageManager
     LanguageManager* languageManager = new LanguageManager(&engine, &engine);
-    qDebug() << "4";
 
     // Регистрируем его в QML с именем languageManager
     engine.rootContext()->setContextProperty("languageManager", languageManager);
-    qDebug() << "5";
 
     // Загружаем QML — путь должен совпадать с URI
     const QUrl url("qrc:/DataMonitorPro/qml/main.qml");
@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
     }, Qt::QueuedConnection);
 
     engine.load(url);
-    qDebug() << "7";
+
     qDebug() << "Root objects:" << engine.rootObjects().size();
 
     return app.exec();

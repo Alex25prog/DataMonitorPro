@@ -6,18 +6,133 @@
 #include <QJsonObject>
 #include <QNetworkRequest>
 #include <QDebug>
+#include <QTimer>
 
-// ============================================================
-// Конструктор / Деструктор
-// ============================================================
 ExchangeClient::ExchangeClient(QObject *parent)
     : QObject(parent)
     , m_networkManager(new QNetworkAccessManager(this))
-    , m_webSocket(new QWebSocket(QString(), QWebSocketProtocol::VersionLatest, this))
-    , m_symbol("BTCUSDT")
-    , m_interval(Interval::H1)
 {
-    // Подключаем сигналы WebSocket
+    qDebug() << "ExchangeClient created";
+}
+
+ExchangeClient::~ExchangeClient()
+{
+    closeRealtime();
+    qDebug() << "ExchangeClient destroyed";
+}
+
+
+// Публичный метод
+void ExchangeClient::loadMarket(const QString& symbol, Interval interval, int limit)
+{
+    if (symbol.isEmpty()) {
+        emit errorOccurred("Symbol is empty");
+        return;
+    }
+
+    // Если тот же символ и интервал, и WebSocket уже работает — только история
+    if (symbol == m_symbol && interval == m_interval && isRealtimeConnected()) {
+        qDebug() << "Same market, loading history only...";
+        setState(ClientState::LoadingHistory);
+        fetchHistory(symbol, interval, limit);
+        return;
+    }
+
+    // Иначе — полная смена рынка
+    qDebug() << "Switching market to" << symbol << intervalToString(interval);
+
+    // Закрываем старый WebSocket, если есть
+    if (m_webSocket) {
+        closeRealtime();
+    }
+
+    // Обновляем параметры
+    m_symbol = symbol;
+    m_interval = interval;
+
+    // Загружаем историю (после её загрузки запустится WebSocket)
+    setState(ClientState::LoadingHistory);
+    fetchHistory(symbol, interval, limit);
+}
+
+
+// REST (история)
+
+void ExchangeClient::fetchHistory(const QString& symbol, Interval interval, int limit)
+{
+    QUrl url("https://api.binance.com/api/v3/klines");
+    QUrlQuery query;
+    query.addQueryItem("symbol", symbol);
+    query.addQueryItem("interval", intervalToString(interval));
+    query.addQueryItem("limit", QString::number(limit));
+    url.setQuery(query);
+
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::UserAgentHeader, "DataMonitorPro/1.0");
+
+    ++m_requestId;
+    quint64 currentId = m_requestId;
+
+    QNetworkReply* reply = m_networkManager->get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, currentId]() {
+        if (currentId != m_requestId) {
+            qDebug() << "Ignoring stale reply (id:" << currentId << ", current:" << m_requestId << ")";
+            reply->deleteLater();
+            return;
+        }
+        onRestReplyFinished(reply);
+    });
+}
+
+void ExchangeClient::onRestReplyFinished(QNetworkReply* reply)
+{
+    if (reply->error() != QNetworkReply::NoError) {
+        qDebug() << "REST API error:" << reply->errorString();
+        emit errorOccurred(reply->errorString());
+        reply->deleteLater();
+        setState(ClientState::Error);
+        return;
+    }
+
+    QByteArray data = reply->readAll();
+    reply->deleteLater();
+
+    QList<CandleData> candles = parseCandles(data);
+    qDebug() << "REST API: loaded" << candles.size() << "candles";
+
+    if (!candles.isEmpty()) {
+        m_lastCandleTime = candles.last().closeTime;
+        emit candlesLoaded(candles);
+    } else {
+        emit errorOccurred("Empty response from Binance");
+        setState(ClientState::Error);
+        return;
+    }
+
+    // После загрузки истории — открываем WebSocket, если ещё не открыт
+    if (!isRealtimeConnected()) {
+        qDebug() << "Opening WebSocket for" << m_symbol << intervalToString(m_interval);
+        openRealtime(m_symbol, m_interval);
+    }
+
+    setState(ClientState::Connected);
+}
+
+
+// WebSocket
+
+void ExchangeClient::openRealtime(const QString& symbol, Interval interval)
+{
+    if (m_webSocket) {
+        qDebug() << "WebSocket already exists, closing first";
+        closeRealtime();
+    }
+
+    m_manualClose = false;  // сброс флага для авто-реконнекта
+
+    m_webSocket = new QWebSocket(QString(), QWebSocketProtocol::VersionLatest, this);
+    qDebug() << "WebSocket" << static_cast<void*>(m_webSocket.data()) << "created";
+
     connect(m_webSocket, &QWebSocket::connected,
             this, &ExchangeClient::onWebSocketConnected);
     connect(m_webSocket, &QWebSocket::textMessageReceived,
@@ -27,18 +142,155 @@ ExchangeClient::ExchangeClient(QObject *parent)
     connect(m_webSocket, &QWebSocket::errorOccurred,
             this, &ExchangeClient::onWebSocketError);
 
-    qDebug() << "ExchangeClient created";
+    QString wsUrl = QString("wss://stream.binance.com:9443/ws/%1@kline_%2")
+                        .arg(symbol.toLower())
+                        .arg(intervalToString(interval));
+
+    qDebug() << "Connecting to Binance WebSocket:" << wsUrl;
+    m_webSocket->open(QUrl(wsUrl));
 }
 
-ExchangeClient::~ExchangeClient()
+void ExchangeClient::closeRealtime()
 {
-    stopRealtimeUpdates();
-    qDebug() << "ExchangeClient destroyed";
+    if (!m_webSocket) {
+        return;
+    }
+
+    qDebug() << "Closing WebSocket" << static_cast<void*>(m_webSocket.data());
+    m_manualClose = true;  // отключаем авто-реконнект
+
+    // Отключаем наши слоты
+    disconnect(m_webSocket, nullptr, this, nullptr);
+
+    // Сохраняем указатель и обнуляем
+    QWebSocket* socket = m_webSocket;
+    m_webSocket = nullptr;
+
+    // Удаляем после disconnected
+    connect(socket, &QWebSocket::disconnected,
+            socket, &QObject::deleteLater,
+            Qt::SingleShotConnection);
+
+    socket->close();
 }
 
-// ============================================================
+bool ExchangeClient::isRealtimeConnected() const
+{
+    return m_webSocket && m_webSocket->state() == QAbstractSocket::ConnectedState;
+}
+
+void ExchangeClient::scheduleReconnect()
+{
+    if (m_manualClose) return;
+    if (m_state == ClientState::Error || m_state == ClientState::LoadingHistory) return;
+    if (m_symbol.isEmpty()) return;
+
+    QTimer::singleShot(3000, this, [this]() {
+        if (!isRealtimeConnected() && m_state != ClientState::Error) {
+            qDebug() << "🔄 Auto-reconnecting...";
+            openRealtime(m_symbol, m_interval);
+        }
+    });
+}
+
+
+// WebSocket Слоты
+
+void ExchangeClient::onWebSocketConnected()
+{
+    if (!m_webSocket) {
+        qDebug() << "WebSocket destroyed before connection established";
+        return;
+    }
+
+    qDebug() << "✅ WebSocket" << static_cast<void*>(m_webSocket.data()) << "connected";
+    emit connectionStatusChanged(true);
+    setState(ClientState::Connected);
+}
+
+void ExchangeClient::onWebSocketDisconnected()
+{
+    qDebug() << "❌ WebSocket disconnected";
+    emit connectionStatusChanged(false);
+
+    if (!m_manualClose) {
+        setState(ClientState::Reconnecting);
+        scheduleReconnect();
+    } else {
+        setState(ClientState::Idle);
+    }
+}
+
+void ExchangeClient::onWebSocketError(QAbstractSocket::SocketError error)
+{
+    QString msg = QString("WebSocket error: %1").arg(error);
+    qDebug() << msg;
+    emit errorOccurred(msg);
+
+    setState(ClientState::Error);
+    if (!m_manualClose) {
+        QTimer::singleShot(3000, this, [this]() {
+            if (!isRealtimeConnected() && m_state == ClientState::Error) {
+                qDebug() << "🔄 Reconnecting after error...";
+                openRealtime(m_symbol, m_interval);
+            }
+        });
+    }
+}
+
+void ExchangeClient::onWebSocketTextMessageReceived(const QString& message)
+{
+    if (!m_webSocket || m_webSocket->state() != QAbstractSocket::ConnectedState) {
+        qDebug() << "Ignoring message - WebSocket not connected";
+        return;
+    }
+
+    QJsonDocument doc = QJsonDocument::fromJson(message.toUtf8());
+    if (doc.isNull() || !doc.isObject()) {
+        qDebug() << "Invalid JSON message";
+        return;
+    }
+
+    QJsonObject root = doc.object();
+
+    // Ping от Binance
+    if (root.contains("ping")) {
+        QJsonObject pong;
+        pong["pong"] = root["ping"].toVariant().toLongLong();
+        m_webSocket->sendTextMessage(QJsonDocument(pong).toJson(QJsonDocument::Compact));
+        return;
+    }
+
+    if (!root.contains("k")) {
+        return;
+    }
+
+    QJsonObject kline = root["k"].toObject();
+
+    CandleData candle;
+    candle.openTime = kline["t"].toVariant().toLongLong();
+    candle.closeTime = kline["T"].toVariant().toLongLong();
+    candle.open = kline["o"].toString().toDouble();
+    candle.high = kline["h"].toString().toDouble();
+    candle.low = kline["l"].toString().toDouble();
+    candle.close = kline["c"].toString().toDouble();
+    candle.volume = kline["v"].toString().toDouble();
+    candle.isClosed = kline["x"].toBool();
+
+    emit newCandleTick(candle);
+}
+
+
 // Вспомогательные методы
-// ============================================================
+
+void ExchangeClient::setState(ClientState newState)
+{
+    if (m_state != newState) {
+        m_state = newState;
+        qDebug() << "State changed to:" << static_cast<int>(newState);
+    }
+}
+
 QString ExchangeClient::intervalToString(Interval interval)
 {
     switch (interval) {
@@ -57,181 +309,27 @@ QList<CandleData> ExchangeClient::parseCandles(const QByteArray& data)
 {
     QList<CandleData> candles;
     QJsonDocument doc = QJsonDocument::fromJson(data);
-
     if (doc.isNull() || !doc.isArray()) {
         qDebug() << "Invalid JSON from Binance";
         return candles;
     }
 
-    QJsonArray array = doc.array();
-
+    const QJsonArray array = doc.array();
     for (const QJsonValue& value : array) {
         if (!value.isArray()) continue;
-
-        QJsonArray candleArray = value.toArray();
-        if (candleArray.size() < 7) continue;
+        QJsonArray arr = value.toArray();
+        if (arr.size() < 7) continue;
 
         CandleData candle;
-        candle.openTime = candleArray[0].toVariant().toLongLong();
-        candle.open = candleArray[1].toString().toDouble();
-        candle.high = candleArray[2].toString().toDouble();
-        candle.low = candleArray[3].toString().toDouble();
-        candle.close = candleArray[4].toString().toDouble();
-        candle.volume = candleArray[5].toString().toDouble();
-        candle.closeTime = candleArray[6].toVariant().toLongLong();
+        candle.openTime = arr[0].toVariant().toLongLong();
+        candle.open = arr[1].toString().toDouble();
+        candle.high = arr[2].toString().toDouble();
+        candle.low = arr[3].toString().toDouble();
+        candle.close = arr[4].toString().toDouble();
+        candle.volume = arr[5].toString().toDouble();
+        candle.closeTime = arr[6].toVariant().toLongLong();
         candle.isClosed = true;
-
         candles.append(candle);
     }
-
     return candles;
-}
-
-// ============================================================
-// REST API — загрузка истории
-// ============================================================
-void ExchangeClient::fetchCandles(const QString& symbol, Interval interval, int limit)
-{
-    QUrl url("https://api.binance.com/api/v3/klines");
-    QUrlQuery query;
-    query.addQueryItem("symbol", symbol);
-    query.addQueryItem("interval", intervalToString(interval));
-    query.addQueryItem("limit", QString::number(limit));
-    url.setQuery(query);
-
-    QNetworkRequest request(url);
-    request.setHeader(QNetworkRequest::UserAgentHeader, "DataMonitorPro/1.0");
-
-    qDebug() << "Fetching candles for" << symbol << "interval:" << intervalToString(interval) << "limit:" << limit;
-
-    QNetworkReply* reply = m_networkManager->get(request);
-    connect(reply, &QNetworkReply::finished, [this, reply]() {
-        onRestReplyFinished(reply);
-    });
-}
-
-void ExchangeClient::loadHistory(const QString& symbol, Interval interval, int limit)
-{
-    m_symbol = symbol;
-    m_interval = interval;
-    fetchCandles(symbol, interval, limit);
-}
-
-void ExchangeClient::onRestReplyFinished(QNetworkReply* reply)
-{
-    if (reply->error() != QNetworkReply::NoError) {
-        qDebug() << "REST API error:" << reply->errorString();
-        emit errorOccurred(reply->errorString());
-        reply->deleteLater();
-        return;
-    }
-
-    QByteArray data = reply->readAll();
-    reply->deleteLater();
-
-    QList<CandleData> candles = parseCandles(data);
-    qDebug() << "REST API: loaded" << candles.size() << "candles";
-
-    if (!candles.isEmpty()) {
-        emit candlesLoaded(candles);
-        m_lastCandleTime = candles.last().closeTime;
-    }
-}
-
-// ============================================================
-// WebSocket — реальное время
-// ============================================================
-void ExchangeClient::startRealtimeUpdates(const QString& symbol, Interval interval)
-{
-    // Если уже подключены к этому же символу, не переключаемся
-    if (m_isRealtimeConnected && m_symbol.toLower() == symbol.toLower()) {
-        qDebug() << "WebSocket already connected to" << symbol;
-        return;
-    }
-
-    // Если подключены к другому символу-> закрываем
-    if (m_isRealtimeConnected) {
-        stopRealtimeUpdates();
-    }
-
-    m_symbol = symbol;
-    m_interval = interval;
-
-    // Binance WebSocket URL для свечей (символ в нижнем регистре)
-    QString wsUrl = QString("wss://stream.binance.com:9443/ws/%1@kline_%2")
-                        .arg(symbol.toLower())
-                        .arg(intervalToString(interval));
-
-    qDebug() << "Connecting to Binance WebSocket:" << wsUrl;
-    m_webSocket->open(QUrl(wsUrl));
-}
-
-void ExchangeClient::stopRealtimeUpdates()
-{
-    if (m_webSocket && m_webSocket->state() == QAbstractSocket::ConnectedState) {
-        m_webSocket->close();
-        qDebug() << "WebSocket closed";
-    }
-    m_isRealtimeConnected = false;
-}
-
-bool ExchangeClient::isRealtimeConnected() const
-{
-    return m_isRealtimeConnected;
-}
-
-void ExchangeClient::onWebSocketConnected()
-{
-    m_isRealtimeConnected = true;
-    qDebug() << "WebSocket connected to Binance!";
-    emit connectionStatusChanged(true);
-}
-
-void ExchangeClient::onWebSocketDisconnected()
-{
-    m_isRealtimeConnected = false;
-    qDebug() << "WebSocket disconnected from Binance";
-    emit connectionStatusChanged(false);
-}
-
-void ExchangeClient::onWebSocketError(QAbstractSocket::SocketError error)
-{
-    QString errorMsg = QString("WebSocket error: %1").arg(error);
-    qDebug() << errorMsg;
-    emit errorOccurred(errorMsg);
-    m_isRealtimeConnected = false;
-}
-
-// ============================================================
-// Парсинг WebSocket сообщений
-// ============================================================
-void ExchangeClient::onWebSocketTextMessageReceived(const QString& message)
-{
-    QJsonDocument doc = QJsonDocument::fromJson(message.toUtf8());
-    if (doc.isNull() || !doc.isObject()) {
-        qDebug() << "Invalid WebSocket message";
-        return;
-    }
-
-    QJsonObject root = doc.object();
-
-    // Проверяем, что это сообщение о свече
-    if (!root.contains("k")) {
-        return;
-    }
-
-    QJsonObject kline = root["k"].toObject();
-
-    CandleData candle;
-    candle.openTime = kline["t"].toVariant().toLongLong();
-    candle.closeTime = kline["T"].toVariant().toLongLong();
-    candle.open = kline["o"].toString().toDouble();
-    candle.high = kline["h"].toString().toDouble();
-    candle.low = kline["l"].toString().toDouble();
-    candle.close = kline["c"].toString().toDouble();
-    candle.volume = kline["v"].toString().toDouble();
-    candle.isClosed = kline["x"].toBool();  // true = свеча закрылась
-
-    // Отправляем сигнал о новом тике
-    emit newCandleTick(candle);
 }

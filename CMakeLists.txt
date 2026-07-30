@@ -59,6 +59,7 @@ target_link_libraries(DataMonitorPro
     Qt6::Charts
     Qt6::ChartsQml
 
+
 )
 
 qt_import_qml_plugins(DataMonitorPro)

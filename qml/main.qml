@@ -112,9 +112,6 @@ ApplicationWindow {
         // Возврящаем выбранную страну на место
         countrySelect.currentIndex = savedCountryIndex;
 
-        // Принудительно обновляем отображение
-        //countrySelect.currentText = countrySelect.model[savedCountryIndex].text;
-
         // Перерисовываем города и восстанавливаем выбранный
         updateCityList(savedCityValue);
     }
@@ -817,7 +814,7 @@ ApplicationWindow {
             }
         }
 
-        // Основная область: график и таблица
+        // Основная область: график, информационные панели и таблица
         SplitView {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -830,7 +827,7 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 theme: ChartView.ChartThemeDark
                 antialiasing: true
-                animationOptions: ChartView.SeriesAnimations
+                animationOptions: ChartView.NoAnimation
                 backgroundColor: "#1e1e1e"
                 visible: showWeatherGraph
 
@@ -917,7 +914,7 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 theme: ChartView.ChartThemeDark
                 antialiasing: true
-                animationOptions: ChartView.NoAnimations // NoAnimation, чтобы избежать assert(error)
+                animationOptions: ChartView.NoAnimation // NoAnimation, чтобы избежать assert(error)
                 backgroundColor: "#1e1e1e"
                 visible: showTradingGraph
 
@@ -978,10 +975,10 @@ ApplicationWindow {
 
                 Button {
                     id: loadBtcButton
-                    property bool isLoading: false
+                    //property bool isLoading: false
 
-                    text: isLoading ? qsTr("Loading...") : qsTr("Load BTCUSD")
-                    enabled: !isLoading
+                    text: controller.isLoading ? qsTr("Loading...") : qsTr("Load BTCUSD")
+                    enabled: !controller.isLoading
 
                     background: Rectangle {
                         color: loadBtcButton.enabled ? "#1565c0" : "#666666"
@@ -998,13 +995,13 @@ ApplicationWindow {
                     }
 
                     onClicked: {
-                        if (isLoading) return
+                        if (controller.isLoading) return // Проверка через С++
 
-                        isLoading = true
-                        enabled = false
+                        //isLoading = true
+                        //enabled = false
 
                         controller.loadCandles("BTCUSDT", 4, 100) // 4 = H1
-                        loadDebounceTimer.start()
+                        //loadDebounceTimer.start()
                 }
             }
 
@@ -1087,237 +1084,599 @@ ApplicationWindow {
                 }
             }
 
-            // Таблица данных
+            // Информационная панель погоды
             Rectangle {
-                SplitView.fillHeight: true
-                color: "#1e1e1e"
-                border.color: "#3d3d3d"
+                           id: weatherInfoPanel
+                           SplitView.preferredHeight: 60
+                           SplitView.minimumHeight: 50
+                           Layout.fillWidth: true
+                           color: "#1a1a1a"
+                           visible: showWeatherGraph
+                           border.color: "#2d2d2d"
+                           border.width: 1
 
-                ListView {
-                    id: tableView
-                    width: parent.width
-                    anchors.fill: parent
-                    anchors.margins: 5
-                    model: controller.dataModel
-                    clip: true
+                           RowLayout {
+                               anchors.fill: parent
+                               anchors.margins: 10
+                               spacing: 20
 
-                    header: Rectangle {
-                        width: tableView.width
-                        height: 40
-                        color: "#2d2d2d"
+                               Rectangle {
+                                   Layout.fillWidth: true
+                                   height: 40
+                                   color: "transparent"
 
-                        Row {
-                            anchors.fill: parent
-                            anchors.margins: 5
-                            spacing: 10
+                                   Column {
+                                       anchors.centerIn: parent
+                                       spacing: 2
 
-                            Rectangle { width: 180; height: 30; color: "#3d3d3d"; radius: 3
-                                Text { text: qsTr("Timestamp"); anchors.centerIn: parent; color: "white" } }
-                            Rectangle { width: 100; height: 30; color: "#3d3d3d"; radius: 3
-                                Text { text: qsTr("Type"); anchors.centerIn: parent; color: "white" } }
-                            Rectangle { width: 100; height: 30; color: "#3d3d3d"; radius: 3
-                                Text { text: qsTr("Value"); anchors.centerIn: parent; color: "white" } }
-                            Rectangle { width: 80; height: 30; color: "#3d3d3d"; radius: 3
-                                Text { text: qsTr("Unit"); anchors.centerIn: parent; color: "white" } }
-                            Rectangle { width: 700; height: 30; color: "#3d3d3d"; radius: 3
-                                Text { text: qsTr("Details"); anchors.centerIn: parent; color: "white" } }
-                        }
-                    }
+                                       Text {
+                                           text: qsTr("Temperature")
+                                           color: "#888888"
+                                           font.pixelSize: 10
+                                           horizontalAlignment: Text.AlignHCenter
+                                       }
 
-                    delegate: Rectangle {
-                        width: tableView.width
-                        height: 35
-                        color: index % 2 === 0 ? "#252525" : "#2a2a2a"
+                                       Row {
+                                           spacing: 5
+                                           anchors.horizontalCenter: parent.horizontalCenter
 
-                        Row {
-                            anchors.fill: parent
-                            anchors.margins: 5
-                            spacing: 10
+                                           Text {
+                                               id: weatherTempValue
+                                               text: "--"
+                                               color: "#ff5050"
+                                               font.pixelSize: 18
+                                               font.bold: true
+                                           }
 
-                            Text { width: 180; text: model.timestamp || ""; color: "white"; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter }
-                            Text { width: 100; text: model.type ? qsTr(model.type) : ""; color: "white"; horizontalAlignment: Text.AlignHCenter }
-                            Text { width: 100; text: model.value ? model.value.toFixed(2) : "0.00"; color: "#4caf50"; horizontalAlignment: Text.AlignHCenter }
-                            Text { width: 80; text: model.unit || ""; color: "white"; horizontalAlignment: Text.AlignHCenter }
-                            Text { width: 700; text: model.string || ""; color: "#808080"; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter }
-                        }
-                    }
-                }
-            }
-        }
+                                           Text {
+                                               text: "°C"
+                                               color: "#ff5050"
+                                               font.pixelSize: 12
+                                               anchors.bottom: weatherTempValue.bottom
+                                               anchors.bottomMargin: 2
+                                           }
+                                       }
+                                   }
+                               }
 
-        // Нижняя панель статистики
-        Rectangle {
-            Layout.fillWidth: true
-            height: 40
-            color: "#2d2d2d"
-            radius: 3
+                               Rectangle {
+                                   Layout.fillWidth: true
+                                   height: 40
+                                   color: "transparent"
 
-            RowLayout {
-                anchors.fill: parent
-                anchors.margins: 10
+                                   Column {
+                                       anchors.centerIn: parent
+                                       spacing: 2
 
-                Label { text: qsTr("Total points:") + " " + controller.dataModel.count; color: "#B22222" }
-                Label { text: "|" }
+                                       Text {
+                                           text: qsTr("Pressure")
+                                           color: "#888888"
+                                           font.pixelSize: 10
+                                           horizontalAlignment: Text.AlignHCenter
+                                       }
 
-                Label {
-                    id: statusServer
-                    text: qsTr("Server:") + " " + (controller.isServerRunning ? qsTr("Active") : qsTr("Inactive"))
-                    color: "#B22222"
-                }
-                Label { text: "|" }
-                Label { text: qsTr("Database: PostgreSQL"); color: "#B22222" }
-                Label { text: "|" }
-                Label {
-                    id: statusWeather
-                    text: qsTr("Weather:") + " " + (controller.isWeatherRunning ? qsTr("Active") : qsTr("Inactive"))
-                    color: controller.isWeatherRunning ? "#4caf50" : "#f44336"
-                }
-            }
-        }
-    }
+                                       Row {
+                                           spacing: 5
+                                           anchors.horizontalCenter: parent.horizontalCenter
 
-    Connections {
-        target: controller
+                                           Text {
+                                               id: weatherPressValue
+                                               text: "--"
+                                               color: "#5090ff"
+                                               font.pixelSize: 18
+                                               font.bold: true
+                                           }
 
-        function onClearGraphRequested() {
-            // Очищаем все линии
-            tempSeries.clear()
-            pressSeries.clear()
-            humSeries.clear()
-            //candlestickSeries.clear() // Не вызываем это делает С++
-            movingAverageSeries.clear()
+                                           Text {
+                                               text: "hPa"
+                                               color: "#5090ff"
+                                               font.pixelSize: 12
+                                               anchors.bottom: weatherPressValue.bottom
+                                               anchors.bottomMargin: 2
+                                           }
+                                       }
+                                   }
+                               }
 
-            // Сбрасываем оси погоды
-            weatherAxisX.min = 0
-            weatherAxisX.max = 60
+                               Rectangle {
+                                   Layout.fillWidth: true
+                                   height: 40
+                                   color: "transparent"
 
-            // Сбрасываем оси биржи с помощью объектов Date
-            var now = new Date()
-            var future = new Date(now.getTime() + 60 * 60 * 1000) // + 1час
-            axisX.min = now
-            axisX.max = future
+                                   Column {
+                                       anchors.centerIn: parent
+                                       spacing: 2
 
-            axisY.min = 0
-            axisY.max = 100
-            console.log("Graph cleared and axes reset successfully")
-        }
+                                       Text {
+                                           text: qsTr("Humidity")
+                                           color: "#888888"
+                                           font.pixelSize: 10
+                                           horizontalAlignment: Text.AlignHCenter
+                                       }
+
+                                       Row {
+                                           spacing: 5
+                                           anchors.horizontalCenter: parent.horizontalCenter
+
+                                           Text {
+                                               id: weatherHumValue
+                                               text: "--"
+                                               color: "#50ff50"
+                                               font.pixelSize: 18
+                                               font.bold: true
+                                           }
+
+                                           Text {
+                                               text: "%"
+                                               color: "#50ff50"
+                                               font.pixelSize: 12
+                                               anchors.bottom: weatherHumValue.bottom
+                                               anchors.bottomMargin: 2
+                                           }
+                                       }
+                                   }
+                               }
+
+                               Rectangle {
+                                   Layout.fillWidth: true
+                                   height: 40
+                                   color: "transparent"
+
+                                   Column {
+                                       anchors.centerIn: parent
+                                       spacing: 2
+
+                                       Text {
+                                           text: qsTr("City")
+                                           color: "#888888"
+                                           font.pixelSize: 10
+                                           horizontalAlignment: Text.AlignHCenter
+                                       }
+
+                                       Text {
+                                           id: weatherCityValue
+                                           text: controller.weatherCity || "--"
+                                           color: "#ffffff"
+                                           font.pixelSize: 14
+                                           font.bold: true
+                                           horizontalAlignment: Text.AlignHCenter
+                                           elide: Text.ElideRight
+                                           maximumLineCount: 1
+                                       }
+                                   }
+                               }
+
+                               Rectangle {
+                                   Layout.fillWidth: true
+                                   height: 40
+                                   color: "transparent"
+
+                                   Column {
+                                       anchors.centerIn: parent
+                                       spacing: 2
+
+                                       Text {
+                                           text: qsTr("Condition")
+                                           color: "#888888"
+                                           font.pixelSize: 10
+                                           horizontalAlignment: Text.AlignHCenter
+                                       }
+
+                                       Text {
+                                           id: weatherDescValue
+                                           text: "--"
+                                           color: "#ffffff"
+                                           font.pixelSize: 12
+                                           font.bold: true
+                                           horizontalAlignment: Text.AlignHCenter
+                                           elide: Text.ElideRight
+                                           maximumLineCount: 1
+                                       }
+                                   }
+                               }
+                           }
+                       }
 
 
-        function onChartDataReceived(index, value, type) {
-            console.log("Chart data", type, index, value)
+                       // ИНФОРМАЦИОННАЯ ПАНЕЛЬ БИРЖИ
+                       Rectangle {
+                           id: tradingInfoPanel
+                           SplitView.preferredHeight: 60
+                           SplitView.minimumHeight: 50
+                           Layout.fillWidth: true
+                           color: "#1a1a1a"
+                           visible: showTradingGraph
+                           border.color: "#2d2d2d"
+                           border.width: 1
 
-            // Добавляем все три точки с одним индексом
-            //tempSeries.append(index, temperature)
-            //pressSeries.append(index, pressure)
-            //humSeries.append(index, humidity)
+                           RowLayout {
+                               anchors.fill: parent
+                               anchors.margins: 10
+                               spacing: 15
 
-            var series;
-            var axisY;
-            var delta = 5;
+                               Rectangle {
+                                   Layout.fillWidth: true
+                                   height: 40
+                                   color: "transparent"
 
-            // Динамическое масштабирование для температуры
-            if (type === "temperature") {
-                series = tempSeries;
-                axisY = weatherAxisY_Temp;
-                delta = 5;
-            // Динамическое масштабирование для давления
-            } else if (type === "pressure") {
-                series = pressSeries;
-                axisY = weatherAxisY_Press;
-                delta = 10;
-            // Динамическое масштабирование для влажности
-            } else if (type === "humidity") {
-                series = humSeries;
-                axisY = weatherAxisY_Hum;
-                delta = 5;
-            } else {
-                return;
-            }
+                                   Column {
+                                       anchors.centerIn: parent
+                                       spacing: 2
 
-            // Обновляем ось Y
-            if (value < axisY.min) axisY.min = value - delta;
-            if (value > axisY.max) axisY.max = value + delta;
+                                       Text {
+                                           text: qsTr("Price")
+                                           color: "#888888"
+                                           font.pixelSize: 10
+                                           horizontalAlignment: Text.AlignHCenter
+                                       }
 
-            // Добавляем точку
-            series.append(index + 1, value)
+                                       Text {
+                                           id: priceValue
+                                           text: controller.currentPrice || "--"
+                                           color: {
+                                               if (!controller.currentPrice) return "#ffffff"
+                                               var lastPrice = parseFloat(controller.currentPrice)
+                                               var prevPrice = parseFloat(controller.previousPrice || controller.currentPrice)
+                                               if (lastPrice > prevPrice) return "#26a69a"
+                                               if (lastPrice < prevPrice) return "#ef5350"
+                                               return "#ffffff"
+                                           }
+                                           font.pixelSize: 18
+                                           font.bold: true
+                                           horizontalAlignment: Text.AlignHCenter
+                                       }
+                                   }
+                               }
 
-            console.log("Series count", series.count)
-            console.log(
-                weatherChart.plotArea.width,
-                weatherChart.plotArea.height
-            )
+                               Rectangle {
+                                   Layout.fillWidth: true
+                                   height: 40
+                                   color: "transparent"
 
-                  //Принудительно Обновляем ось X
-                   var currentMaxX = Math.max(tempSeries.count, pressSeries.count, humSeries.count);
-                  // Устанавливаем видимы диапазон для первой точки\
-                   if (currentMaxX <= 1) {
-                       weatherAxisX.min = 0;
-                       weatherAxisX.max = 60;
+                                   Column {
+                                       anchors.centerIn: parent
+                                       spacing: 2
 
-                   } else if (currentMaxX > 50) {
-                       weatherAxisX.min = currentMaxX - 50;
-                       weatherAxisX.max = currentMaxX + 5;
-                   } else {
-                       weatherAxisX.min = 0;
-                       weatherAxisX.max = 60;
+                                       Text {
+                                           text: qsTr("Change 24h")
+                                           color: "#888888"
+                                           font.pixelSize: 10
+                                           horizontalAlignment: Text.AlignHCenter
+                                       }
 
-            }
-                   // Принудительно обновляем график (для QtCharts)
-                   weatherChart.update();
-        }
+                                       Text {
+                                           id: changeValue
+                                           text: controller.priceChange || "--"
+                                           color: {
+                                               if (!controller.priceChange) return "#ffffff"
+                                               var change = parseFloat(controller.priceChange)
+                                               if (change > 0) return "#26a69a"
+                                               if (change < 0) return "#ef5350"
+                                               return "#ffffff"
+                                           }
+                                           font.pixelSize: 14
+                                           font.bold: true
+                                           horizontalAlignment: Text.AlignHCenter
+                                       }
 
-        // Только обновление осей, свечи уже обновлены в С++
+                                       Text {
+                                           id: changePercentValue
+                                           text: controller.priceChangePercent || "--"
+                                           color: {
+                                               if (!controller.priceChangePercent) return "#ffffff"
+                                               var change = parseFloat(controller.priceChangePercent)
+                                               if (change > 0) return "#26a69a"
+                                               if (change < 0) return "#ef5350"
+                                               return "#ffffff"
+                                           }
+                                           font.pixelSize: 10
+                                           horizontalAlignment: Text.AlignHCenter
+                                       }
+                                   }
+                               }
 
-        function onCandlesUpdated() {
-            console.log("=== Signal: candlesUpdated ===")
-            // Вызываем метод С++ менеджера
-            //chartManager.updateSeries(candleModel)
+                               Rectangle {
+                                   Layout.fillWidth: true
+                                   height: 40
+                                   color: "transparent"
 
-            // Масштабируем оси, основываясь на данных модели
-            updateAxes()
-        }
-    }
+                                   Column {
+                                       anchors.centerIn: parent
+                                       spacing: 2
 
-    // Следим за изменением модели, только оси.
+                                       Text {
+                                           text: qsTr("24h High")
+                                           color: "#888888"
+                                           font.pixelSize: 10
+                                           horizontalAlignment: Text.AlignHCenter
+                                       }
 
-   // Connections {
-            //target: candleModel
+                                       Text {
+                                           id: highPriceValue
+                                           text: controller.highPrice || "--"
+                                           color: "#26a69a"
+                                           font.pixelSize: 16
+                                           font.bold: true
+                                           horizontalAlignment: Text.AlignHCenter
+                                       }
+                                   }
+                               }
 
-            //function onCountChanged() {
-                //console.log("=== CandleModel count changed to:", candleModel.count, "===")
-                //if (showTradingGraph) {
-                    // Свечи уже обновлены через TradingChartManager в C++
-                    // Обновляем только оси
-                    //updateAxes()
-                //}
-            //}
-        //}
+                               Rectangle {
+                                   Layout.fillWidth: true
+                                   height: 40
+                                   color: "transparent"
 
-        // СИГНАЛ ОТ TradingChartManager — ОБНОВЛЕНИЕ ОСЕЙ + ПЕРЕРИСОВКА
-        Connections {
-            target: chartManager
+                                   Column {
+                                       anchors.centerIn: parent
+                                       spacing: 2
 
-            function onSeriesUpdated() {
-                console.log("=== ChartManager: seriesUpdated ===")
-                updateAxes()
+                                       Text {
+                                           text: qsTr("24h Low")
+                                           color: "#888888"
+                                           font.pixelSize: 10
+                                           horizontalAlignment: Text.AlignHCenter
+                                       }
 
-                // Заставляем QML перерисовать геометрию серии
-                // Это безопасно и не требует доступа к С++ объектам
+                                       Text {
+                                           id: lowPriceValue
+                                           text: controller.lowPrice || "--"
+                                           color: "#ef5350"
+                                           font.pixelSize: 16
+                                           font.bold: true
+                                           horizontalAlignment: Text.AlignHCenter
+                                       }
+                                   }
+                               }
 
-                candlestickSeries.visible = false
-                candlestickSeries.visible = true
+                               Rectangle {
+                                   Layout.fillWidth: true
+                                   height: 40
+                                   color: "transparent"
 
-                console.log("CandlestickSeries redraw triggered")
-            }
-        }
+                                   Column {
+                                       anchors.centerIn: parent
+                                       spacing: 2
 
-        // ОТЛАДКА — ПРОВЕРКА КОНТЕКСТНЫХ СВОЙСТВ
-        Component.onCompleted: {
-            console.log("=== Component completed ===")
-            console.log("controller:", controller)
-            console.log("candleModel:", candleModel)
-            console.log("chartManager:", chartManager)
-            console.log("candlestickSeries:", candlestickSeries)
-        }
-    }
+                                       Text {
+                                           text: qsTr("Volume")
+                                           color: "#888888"
+                                           font.pixelSize: 10
+                                           horizontalAlignment: Text.AlignHCenter
+                                       }
 
+                                       Text {
+                                           id: volumeValue
+                                           text: controller.volume || "--"
+                                           color: "#ff9800"
+                                           font.pixelSize: 14
+                                           font.bold: true
+                                           horizontalAlignment: Text.AlignHCenter
+                                       }
+                                   }
+                               }
+
+                               Rectangle {
+                                   Layout.fillWidth: true
+                                   height: 40
+                                   color: "transparent"
+
+                                   Column {
+                                       anchors.centerIn: parent
+                                       spacing: 2
+
+                                       Text {
+                                           text: qsTr("Updated")
+                                           color: "#888888"
+                                           font.pixelSize: 10
+                                           horizontalAlignment: Text.AlignHCenter
+                                       }
+
+                                       Text {
+                                           id: updateTimeValue
+                                           text: controller.lastUpdateTime || "--"
+                                           color: "#ffffff"
+                                           font.pixelSize: 12
+                                           font.bold: true
+                                           horizontalAlignment: Text.AlignHCenter
+                                       }
+                                   }
+                               }
+                           }
+                       }
+
+                       // ТАБЛИЦА ДАННЫХ
+                       Rectangle {
+                           SplitView.fillHeight: true
+                           color: "#1e1e1e"
+                           border.color: "#3d3d3d"
+
+                           ListView {
+                               id: tableView
+                               width: parent.width
+                               anchors.fill: parent
+                               anchors.margins: 5
+                               model: controller.dataModel
+                               clip: true
+
+                               header: Rectangle {
+                                   width: tableView.width
+                                   height: 40
+                                   color: "#2d2d2d"
+
+                                   Row {
+                                       anchors.fill: parent
+                                       anchors.margins: 5
+                                       spacing: 10
+
+                                       Rectangle { width: 180; height: 30; color: "#3d3d3d"; radius: 3
+                                           Text { text: qsTr("Timestamp"); anchors.centerIn: parent; color: "white" } }
+                                       Rectangle { width: 100; height: 30; color: "#3d3d3d"; radius: 3
+                                           Text { text: qsTr("Type"); anchors.centerIn: parent; color: "white" } }
+                                       Rectangle { width: 100; height: 30; color: "#3d3d3d"; radius: 3
+                                           Text { text: qsTr("Value"); anchors.centerIn: parent; color: "white" } }
+                                       Rectangle { width: 80; height: 30; color: "#3d3d3d"; radius: 3
+                                           Text { text: qsTr("Unit"); anchors.centerIn: parent; color: "white" } }
+                                       Rectangle { width: 700; height: 30; color: "#3d3d3d"; radius: 3
+                                           Text { text: qsTr("Details"); anchors.centerIn: parent; color: "white" } }
+                                   }
+                               }
+
+                               delegate: Rectangle {
+                                   width: tableView.width
+                                   height: 35
+                                   color: index % 2 === 0 ? "#252525" : "#2a2a2a"
+
+                                   Row {
+                                       anchors.fill: parent
+                                       anchors.margins: 5
+                                       spacing: 10
+
+                                       Text { width: 180; text: model.timestamp || ""; color: "white"; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter }
+                                       Text { width: 100; text: model.type ? qsTr(model.type) : ""; color: "white"; horizontalAlignment: Text.AlignHCenter }
+                                       Text { width: 100; text: model.value ? model.value.toFixed(2) : "0.00"; color: "#4caf50"; horizontalAlignment: Text.AlignHCenter }
+                                       Text { width: 80; text: model.unit || ""; color: "white"; horizontalAlignment: Text.AlignHCenter }
+                                       Text { width: 700; text: model.string || ""; color: "#808080"; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter }
+                                   }
+                               }
+                           }
+                       }
+                   }
+
+                   // Нижняя панель статистики
+                   Rectangle {
+                       Layout.fillWidth: true
+                       height: 40
+                       color: "#2d2d2d"
+                       radius: 3
+
+                       RowLayout {
+                           anchors.fill: parent
+                           anchors.margins: 10
+
+                           Label { text: qsTr("Total points:") + " " + controller.dataModel.count; color: "#B22222" }
+                           Label { text: "|" }
+
+                           Label {
+                               id: statusServer
+                               text: qsTr("Server:") + " " + (controller.isServerRunning ? qsTr("Active") : qsTr("Inactive"))
+                               color: "#B22222"
+                           }
+                           Label { text: "|" }
+                           Label { text: qsTr("Database: PostgreSQL"); color: "#B22222" }
+                           Label { text: "|" }
+                           Label {
+                               id: statusWeather
+                               text: qsTr("Weather:") + " " + (controller.isWeatherRunning ? qsTr("Active") : qsTr("Inactive"))
+                               color: controller.isWeatherRunning ? "#4caf50" : "#f44336"
+                           }
+                       }
+                   }
+               }
+
+
+               // ПОДКЛЮЧЕНИЕ СИГНАЛОВ
+               Connections {
+                   target: controller
+
+                   function onClearGraphRequested() {
+                       tempSeries.clear()
+                       pressSeries.clear()
+                       humSeries.clear()
+                       movingAverageSeries.clear()
+
+                       weatherAxisX.min = 0
+                       weatherAxisX.max = 60
+
+                       var now = new Date()
+                       var future = new Date(now.getTime() + 60 * 60 * 1000)
+                       axisX.min = now
+                       axisX.max = future
+
+                       axisY.min = 0
+                       axisY.max = 100
+                       console.log("Graph cleared and axes reset successfully")
+                   }
+
+                   function onChartDataReceived(index, value, type) {
+                       var series
+                       var axisY
+                       var delta = 5
+
+                       if (type === "temperature") {
+                           series = tempSeries
+                           axisY = weatherAxisY_Temp
+                           delta = 5
+                       } else if (type === "pressure") {
+                           series = pressSeries
+                           axisY = weatherAxisY_Press
+                           delta = 10
+                       } else if (type === "humidity") {
+                           series = humSeries
+                           axisY = weatherAxisY_Hum
+                           delta = 5
+                       } else {
+                           return
+                       }
+
+                       if (value < axisY.min) axisY.min = value - delta
+                       if (value > axisY.max) axisY.max = value + delta
+
+                       series.append(index + 1, value)
+
+                       var currentMaxX = Math.max(tempSeries.count, pressSeries.count, humSeries.count)
+                       if (currentMaxX <= 1) {
+                           weatherAxisX.min = 0
+                           weatherAxisX.max = 60
+                       } else if (currentMaxX > 50) {
+                           weatherAxisX.min = currentMaxX - 50
+                           weatherAxisX.max = currentMaxX + 5
+                       } else {
+                           weatherAxisX.min = 0
+                           weatherAxisX.max = 60
+                       }
+
+                       weatherChart.update()
+
+                       // Обновление информационной панели погоды
+                       if (type === "temperature") {
+                           weatherTempValue.text = value.toFixed(1)
+                       } else if (type === "pressure") {
+                           weatherPressValue.text = value.toFixed(0)
+                       } else if (type === "humidity") {
+                           weatherHumValue.text = value.toFixed(0)
+                       }
+                   }
+
+                   function onCandlesUpdated() {
+                       console.log("=== Signal: candlesUpdated ===")
+                       updateAxes()
+                   }
+               }
+
+
+               // СИГНАЛ ОТ TradingChartManager
+               Connections {
+                   target: chartManager
+
+                   function onSeriesUpdated() {
+                       console.log("=== ChartManager: seriesUpdated ===")
+                       updateAxes()
+
+                       candlestickSeries.visible = false
+                       candlestickSeries.visible = true
+
+                       console.log("CandlestickSeries redraw triggered")
+                   }
+               }
+
+
+               // ОТЛАДКА
+               Component.onCompleted: {
+                   console.log("=== Component completed ===")
+                   console.log("controller:", controller)
+                   console.log("candleModel:", candleModel)
+                   console.log("chartManager:", chartManager)
+                   console.log("candlestickSeries:", candlestickSeries)
+               }
+           }

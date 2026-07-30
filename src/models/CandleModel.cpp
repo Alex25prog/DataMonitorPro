@@ -118,26 +118,33 @@ void CandleModel::setCandles(const QList<CandleData>& candles)
 
 void CandleModel::addOrUpdateCandle(const CandleData& candle)
 {
-    // Ищем существующую свечу с таким же временем
-    for (int i = 0; i < m_candles.size(); ++i) {
-        if (m_candles[i].openTime == candle.openTime) {
-            // Обновляем существующую
-            if (candle.isClosed) {
-                m_candles[i] = candle;
-            } else {
-                m_candles[i].high = candle.high;
-                m_candles[i].low = candle.low;
-                m_candles[i].close = candle.close;
-                m_candles[i].volume = candle.volume;
-            }
-            QModelIndex idx = index(i);
-            emit dataChanged(idx, idx);
-            emit countChanged();
-            return;
-        }
+    if (m_candles.isEmpty()) {
+        beginInsertRows(QModelIndex(), 0, 0);
+        m_candles.append(candle);
+        endInsertRows();
+        emit countChanged();
+        emit dataAdded();
+        return;
     }
 
-    // Если свечи нет — добавляем новую
+    CandleData& last = m_candles.last();
+    if (last.openTime == candle.openTime) {
+        // Обновляем последнюю свечу
+        if (candle.isClosed) {
+            last = candle;
+        } else {
+            last.high = candle.high;
+            last.low = candle.low;
+            last.close = candle.close;
+            last.volume = candle.volume;
+        }
+        QModelIndex idx = index(m_candles.size() - 1);
+        emit dataChanged(idx, idx);
+        emit countChanged();
+        return;
+    }
+
+    // Новая свеча
     beginInsertRows(QModelIndex(), m_candles.size(), m_candles.size());
     m_candles.append(candle);
     endInsertRows();

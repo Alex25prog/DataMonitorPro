@@ -5,18 +5,20 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QtWebSockets/QWebSocket>
-//#include <QTimer>
+#include <QPointer>
 #include "../models/CandleData.h"
 
-// Интервалы свечей
+// Перечисления должны быть объявлены ПЕРЕД классом
 enum class Interval {
-    M1,  // 1 минута
-    M5,  // 5 минут
-    M15, // 15 минут
-    M30, // 30 минут
-    H1,  // 1 час
-    H4,  // 4 часа
-    D1   // 1 день
+    M1, M5, M15, M30, H1, H4, D1
+};
+
+enum class ClientState {
+    Idle,
+    LoadingHistory,
+    Connected,
+    Reconnecting,
+    Error
 };
 
 class ExchangeClient : public QObject
@@ -27,20 +29,14 @@ public:
     explicit ExchangeClient(QObject *parent = nullptr);
     ~ExchangeClient();
 
-    // Остновные методы
-    void loadHistory(const QString& symbol, Interval interval, int limit = 100); // REST API загрузка истории
+    // Единый публичный метод
+    void loadMarket(const QString& symbol, Interval interval, int limit = 100);
 
-    // WebSocket реальное время
-    void startRealtimeUpdates(const QString& symbol, Interval interval);
-    void stopRealtimeUpdates();
+    // Статус
     bool isRealtimeConnected() const;
-
-    // Утилиты
-    void setSymbol(const QString& symbol) { m_symbol = symbol; }
-    QString symbol() const { return m_symbol;}
-    static QString intervalToString(Interval interval);
+    ClientState state() const { return m_state; }
+    QString symbol() const { return m_symbol; }
     Interval interval() const { return m_interval; }
-
 
 signals:
     void candlesLoaded(const QList<CandleData>& candles);
@@ -49,33 +45,35 @@ signals:
     void connectionStatusChanged(bool connected);
 
 private slots:
-    //  REST API
     void onRestReplyFinished(QNetworkReply* reply);
-    //void onRealtimeUpdate();
-
-
-    // WebSocket
     void onWebSocketConnected();
     void onWebSocketTextMessageReceived(const QString& message);
     void onWebSocketDisconnected();
     void onWebSocketError(QAbstractSocket::SocketError error);
 
 private:
-    // Впомогательные методы
+    // Вспомогательные методы
+    void setState(ClientState newState);
     QList<CandleData> parseCandles(const QByteArray& data);
-    void fetchCandles(const QString& symbol, Interval interval, int limit);
+    void fetchHistory(const QString& symbol, Interval interval, int limit);
+    void openRealtime(const QString& symbol, Interval interval);
+    void closeRealtime();
+    void scheduleReconnect();
+    static QString intervalToString(Interval interval);
 
     // REST
     QNetworkAccessManager* m_networkManager;
+    quint64 m_requestId = 0;
 
     // WebSocket
-    QWebSocket* m_webSocket;
-    bool m_isRealtimeConnected = false;
+    QPointer<QWebSocket> m_webSocket;
+    bool m_manualClose = false;
 
     // Состояние
-    QString m_symbol;
-    Interval m_interval;
+    ClientState m_state = ClientState::Idle;
+    QString m_symbol = "BTCUSDT";
+    Interval m_interval = Interval::H1;
     qint64 m_lastCandleTime = 0;
+};
 
- };
 #endif // EXCHANGECLIENT_H
