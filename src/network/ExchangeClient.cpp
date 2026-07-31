@@ -194,6 +194,8 @@ void ExchangeClient::closeRealtime()
             Qt::SingleShotConnection);
 
     socket->close();
+    // Что бы QML узнало, что соединение закрыто и поменяло статус кнопки на Startrealtime
+    emit connectionStatusChanged(false);
 }
 
 bool ExchangeClient::isRealtimeConnected() const

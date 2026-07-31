@@ -863,7 +863,7 @@ ApplicationWindow {
                     name: qsTr("Temperature")
                     color: "#ff5050"
                     width: 2
-                    //pointsVisible: true // Точка на графике
+                    pointsVisible: true // Точка на графике
                     axisX: weatherAxisX
                     axisY: weatherAxisY_Temp
                 }
@@ -873,7 +873,7 @@ ApplicationWindow {
                     name: qsTr("Pressure")
                     color: "#5090ff"
                     width: 2
-                    //pointsVisible: true // Точка на графике
+                    pointsVisible: true // Точка на графике
                     axisX: weatherAxisX
                     axisYRight: weatherAxisY_Press
                 }
@@ -883,7 +883,7 @@ ApplicationWindow {
                     name: qsTr("Humidity")
                     color: "#50ff50"
                     width: 2
-                    //pointsVisible: true // Точка на графике
+                    pointsVisible: true // Точка на графике
                     axisX: weatherAxisX
                     axisYRight: weatherAxisY_Hum
                 }
@@ -1612,7 +1612,7 @@ ApplicationWindow {
                        if (value < axisY.min) axisY.min = value - delta
                        if (value > axisY.max) axisY.max = value + delta
 
-                       series.append(index + 1, value)
+                       series.append(index, value)
 
                        var currentMaxX = Math.max(tempSeries.count, pressSeries.count, humSeries.count)
                        if (currentMaxX <= 1) {
