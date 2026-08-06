@@ -74,6 +74,7 @@ qt_add_qml_module(DataMonitorPro
     RESOURCE_PREFIX "/"
     QML_FILES
         qml/main.qml
+        qml/DataTableView.qml
     DEPENDENCIES
         QtCharts
         SOURCES src/core/LanguageManager.h
@@ -86,6 +87,7 @@ qt_add_qml_module(DataMonitorPro
         SOURCES src/models/CandleModel.cpp
         SOURCES src/chart/TradingChartManager.h
         SOURCES src/chart/TradingChartManager.cpp
+        #QML_FILES qml/DataTableView.qml
 
 )
 

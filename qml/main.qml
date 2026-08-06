@@ -4,6 +4,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Controls 2.15
 
+
 ApplicationWindow {
     id: root
 
@@ -233,9 +234,7 @@ ApplicationWindow {
                 Button {
                     id: serverButton
                     implicitWidth: Math.max(85, contentItem.implicitWidth + 5)
-                    //implicitHeight: 45
-                    //anchors.top: parent.top
-                    //anchors.left: parent.left
+
 
                     background: Rectangle {
                         color: controller.isServerRunning ? "#2e7d32" : "#1565c0"
@@ -863,7 +862,7 @@ ApplicationWindow {
                     name: qsTr("Temperature")
                     color: "#ff5050"
                     width: 2
-                    pointsVisible: true // Точка на графике
+                    pointsVisible: true
                     axisX: weatherAxisX
                     axisY: weatherAxisY_Temp
                 }
@@ -873,7 +872,7 @@ ApplicationWindow {
                     name: qsTr("Pressure")
                     color: "#5090ff"
                     width: 2
-                    pointsVisible: true // Точка на графике
+                    pointsVisible: true
                     axisX: weatherAxisX
                     axisYRight: weatherAxisY_Press
                 }
@@ -883,7 +882,7 @@ ApplicationWindow {
                     name: qsTr("Humidity")
                     color: "#50ff50"
                     width: 2
-                    pointsVisible: true // Точка на графике
+                    pointsVisible: true
                     axisX: weatherAxisX
                     axisYRight: weatherAxisY_Hum
                 }
@@ -964,6 +963,7 @@ ApplicationWindow {
 
                 Button {
                     id: loadBtcButton
+                    //property bool isLoading: false
 
                     text: controller.isLoading ? qsTr("Loading...") : qsTr("Load BTCUSD")
                     enabled: !controller.isLoading
@@ -985,6 +985,8 @@ ApplicationWindow {
                     onClicked: {
                         if (controller.isLoading) return // Проверка через С++
 
+
+
                         controller.loadCandles("BTCUSDT", 4, 100) // 4 = H1
                         //loadDebounceTimer.start()
                 }
@@ -993,10 +995,9 @@ ApplicationWindow {
                 Button {
                     id: startRealtimeButton
                     text: controller.isRealtimeConnected ? qsTr("Stop Realtime") : qsTr("Start Realtime")
-                    //enabled: !controller.exchangeClient || !controller.exchangeClient.isRealtimeConnected // Блокировка кнопки от повторного нажатия
 
                     background: Rectangle {
-                        color: controller.isRealtimeConnected ? "##c62828" : "#2e7d32"
+                        color: controller.isRealtimeConnected ? "#c62828" : "#2e7d32"
                         radius: 5
                         opacity: parent.pressed ? 0.7 : 1.0
                     }
@@ -1032,43 +1033,128 @@ ApplicationWindow {
                     color: "#1e1e1e"
                 }
 
-                // Кнопки управления масштабом
+                // Кнопки управления масштабом — компактная плавающая панель
+                // в духе профессиональных торговых терминалов: полупрозрачная
+                // тёмная подложка, круглые кнопки с мягкой подсветкой при
+                // наведении/нажатии и подсказками. Логика onClicked не менялась.
                 Rectangle {
+                    id: zoomPanel
                     anchors.top: parent.top
                     anchors.right: parent.right
                     anchors.topMargin: 10
-                    anchors.rightMargin: 220
-                    anchors.margins: 10
-                    radius: 5
+                    anchors.rightMargin: 50 // Сдвигаем вправо блок с кнопками(меньше значение - провее)
+                    width: zoomRow.implicitWidth + 16
+                    height: zoomRow.implicitHeight + 10
+                    radius: height / 2
+                    color: "#2a2a2ad9"
+                    border.color: "#3d3d3d"
+                    border.width: 1
                     z: 10
 
                     RowLayout {
-                        anchors.fill: parent
-                        spacing: 5
+                        id: zoomRow
+                        anchors.centerIn: parent
+                        spacing: 2
 
                         Button {
                             id: btnIn
+                            implicitWidth: 30
+                            implicitHeight: 30
                             text: "+"
-                            font.pixelSize: 16
-                            font.bold: true
+                            hoverEnabled: true
                             onClicked: tradingChart.zoomIn()
-                            background: Rectangle { color: "#42f5e3"; radius: btnIn.height / 2 }
+
+                            background: Rectangle {
+                                radius: btnIn.height / 2
+                                color: btnIn.pressed ? "#25313f" : (btnIn.hovered ? "#2d3f52" : "transparent")
+                                border.color: btnIn.hovered || btnIn.pressed ? "#3d5a78" : "transparent"
+                                border.width: 1
+                                Behavior on color { ColorAnimation { duration: 120 } }
+                            }
+                            contentItem: Text {
+                                text: btnIn.text
+                                color: btnIn.hovered || btnIn.pressed ? "#ffffff" : "#c9c9c9"
+                                font.pixelSize: 16
+                                font.weight: Font.DemiBold
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            ToolTip.visible: hovered
+                            ToolTip.delay: 500
+                            ToolTip.text: qsTr("Zoom in")
                         }
+
+                        Rectangle {
+                            Layout.alignment: Qt.AlignVCenter
+                            Layout.preferredWidth: 1
+                            Layout.preferredHeight: 16
+                            color: "#404040"
+                        }
+
                         Button {
                             id: btnIn2
-                            text: "-"
-                            font.pixelSize: 16
-                            font.bold: true
+                            implicitWidth: 30
+                            implicitHeight: 30
+                            text: "\u2212" // типографский минус, не дефис
+                            hoverEnabled: true
                             onClicked: tradingChart.zoomOut()
-                            background: Rectangle { color: "#42f5e3"; radius: btnIn2.height / 2 }
+
+                            background: Rectangle {
+                                radius: btnIn2.height / 2
+                                color: btnIn2.pressed ? "#25313f" : (btnIn2.hovered ? "#2d3f52" : "transparent")
+                                border.color: btnIn2.hovered || btnIn2.pressed ? "#3d5a78" : "transparent"
+                                border.width: 1
+                                Behavior on color { ColorAnimation { duration: 120 } }
+                            }
+                            contentItem: Text {
+                                text: btnIn2.text
+                                color: btnIn2.hovered || btnIn2.pressed ? "#ffffff" : "#c9c9c9"
+                                font.pixelSize: 16
+                                font.weight: Font.DemiBold
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            ToolTip.visible: hovered
+                            ToolTip.delay: 500
+                            ToolTip.text: qsTr("Zoom out")
                         }
+
+                        Rectangle {
+                            Layout.alignment: Qt.AlignVCenter
+                            Layout.preferredWidth: 1
+                            Layout.preferredHeight: 16
+                            color: "#404040"
+                        }
+
                         Button {
                             id: btnIn3
-                            text: "↺"
-                            font.pixelSize: 16
-                            font.bold: true
+                            implicitWidth: 30
+                            implicitHeight: 30
+                            text: "\u21BA"
+                            hoverEnabled: true
                             onClicked: tradingChart.zoomReset()
-                            background: Rectangle { color: "#42f5e3"; radius: btnIn3.height / 2 }
+
+                            background: Rectangle {
+                                radius: btnIn3.height / 2
+                                color: btnIn3.pressed ? "#25313f" : (btnIn3.hovered ? "#2d3f52" : "transparent")
+                                border.color: btnIn3.hovered || btnIn3.pressed ? "#3d5a78" : "transparent"
+                                border.width: 1
+                                Behavior on color { ColorAnimation { duration: 120 } }
+                            }
+                            contentItem: Text {
+                                text: btnIn3.text
+                                color: btnIn3.hovered || btnIn3.pressed ? "#ffffff" : "#c9c9c9"
+                                font.pixelSize: 14
+                                font.weight: Font.DemiBold
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            ToolTip.visible: hovered
+                            ToolTip.delay: 500
+                            ToolTip.text: qsTr("Reset zoom")
                         }
                     }
                 }
@@ -1475,63 +1561,23 @@ ApplicationWindow {
                            }
                        }
 
-                       // ТАБЛИЦА ДАННЫХ
-                       Rectangle {
+                       // ТАБЛИЦА ДАННЫХ(своя для погоды и своя дл биржи,
+                       // переключаются вместе с graph-вкладками (showWeatherGraph/
+                       // showTradingGraph), как и графики выше.
+                       DataTableView {
                            SplitView.fillHeight: true
-                           color: "#1e1e1e"
-                           border.color: "#3d3d3d"
-
-                           ListView {
-                               id: tableView
-                               width: parent.width
-                               anchors.fill: parent
-                               anchors.margins: 5
-                               model: controller.dataModel
-                               clip: true
-
-                               header: Rectangle {
-                                   width: tableView.width
-                                   height: 40
-                                   color: "#2d2d2d"
-
-                                   Row {
-                                       anchors.fill: parent
-                                       anchors.margins: 5
-                                       spacing: 10
-
-                                       Rectangle { width: 180; height: 30; color: "#3d3d3d"; radius: 3
-                                           Text { text: qsTr("Timestamp"); anchors.centerIn: parent; color: "white" } }
-                                       Rectangle { width: 100; height: 30; color: "#3d3d3d"; radius: 3
-                                           Text { text: qsTr("Type"); anchors.centerIn: parent; color: "white" } }
-                                       Rectangle { width: 100; height: 30; color: "#3d3d3d"; radius: 3
-                                           Text { text: qsTr("Value"); anchors.centerIn: parent; color: "white" } }
-                                       Rectangle { width: 80; height: 30; color: "#3d3d3d"; radius: 3
-                                           Text { text: qsTr("Unit"); anchors.centerIn: parent; color: "white" } }
-                                       Rectangle { width: 700; height: 30; color: "#3d3d3d"; radius: 3
-                                           Text { text: qsTr("Details"); anchors.centerIn: parent; color: "white" } }
-                                   }
-                               }
-
-                               delegate: Rectangle {
-                                   width: tableView.width
-                                   height: 35
-                                   color: index % 2 === 0 ? "#252525" : "#2a2a2a"
-
-                                   Row {
-                                       anchors.fill: parent
-                                       anchors.margins: 5
-                                       spacing: 10
-
-                                       Text { width: 180; text: model.timestamp || ""; color: "white"; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter }
-                                       Text { width: 100; text: model.type ? qsTr(model.type) : ""; color: "white"; horizontalAlignment: Text.AlignHCenter }
-                                       Text { width: 100; text: model.value ? model.value.toFixed(2) : "0.00"; color: "#4caf50"; horizontalAlignment: Text.AlignHCenter }
-                                       Text { width: 80; text: model.unit || ""; color: "white"; horizontalAlignment: Text.AlignHCenter }
-                                       Text { width: 700; text: model.string || ""; color: "#808080"; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter }
-                                   }
-                               }
-                           }
+                           visible: showWeatherGraph
+                           model: controller.dataModel
+                           emptyText: qsTr("No weather data yet - start weather monitoring")
                        }
-                   }
+
+                       DataTableView {
+                           SplitView.fillHeight: true
+                           visible: showTradingGraph
+                           model: controller.tradingDataModel
+                           emptyText: qsTr("No trading data yet - load history or start realtime")
+                       }
+                    }
 
                    // Нижняя панель статистики
                    Rectangle {
@@ -1652,11 +1698,11 @@ ApplicationWindow {
                    function onSeriesUpdated() {
                        console.log("=== ChartManager: seriesUpdated ===")
                        updateAxes()
-
-                       candlestickSeries.visible = false
-                       candlestickSeries.visible = true
-
-                       console.log("CandlestickSeries redraw triggered")
+                       // Больше не переключаем candlestickSeries.visible false/true здесь:
+                       // это провоцировало Qt Charts временно отвязывать серию от осей
+                       // и подставлять дефолтную нормализованную ось (0.00-1.00) поверх
+                       // настоящей DateTimeAxis при каждом тике realtime-данных.
+                       // zoomReset() внутри updateAxes() уже форсирует нужный layout.
                    }
                }
 

@@ -31,6 +31,7 @@ class MainController : public QObject
     // Q_PROPERTY для QML
     Q_PROPERTY(TradingChartManager* chartManager READ chartManager CONSTANT)
     Q_PROPERTY(DataModel* dataModel READ dataModel CONSTANT)
+    Q_PROPERTY(DataModel* tradingDataModel READ tradingDataModel CONSTANT)
     Q_PROPERTY(CandleModel* candleModel READ candleModel CONSTANT)
 
     Q_PROPERTY(bool isServerRunning READ isServerRunning NOTIFY serverRunningChanged)
@@ -59,6 +60,7 @@ public:
 
     // Геттеры для QML
     DataModel* dataModel() const { return m_dataModel; }
+    DataModel* tradingDataModel() const { return m_tradingDataModel; }
     bool isServerRunning() const { return m_serverRunning; }
     bool isWeatherRunning() const { return m_weatherRunning; }
     bool isCitySelected() const { return m_citySelected; }
@@ -152,6 +154,7 @@ private slots:
     // Биржа (НОВЫЕ СЛОТЫ)
     void onCandlesLoaded(const QList<CandleData>& candles);
     void onNewCandleTick(const CandleData& candle);
+    void onTradePriceReceived(double price, qint64 tradeTimeMs);
     void onExchangeError(const QString& error);
 
 private:
@@ -166,6 +169,7 @@ private:
 
     // Основные компоненты
     DataModel* m_dataModel;
+    DataModel* m_tradingDataModel; // Отдельная таблица событий для вкладки Биржа
     WebSocketServer* m_server;
     DatabaseManager* m_database;
     DataProcessor* m_processor;

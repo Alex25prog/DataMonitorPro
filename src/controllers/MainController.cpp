@@ -11,6 +11,7 @@ MainController::MainController(QQmlApplicationEngine* engine, QObject *parent)
     : QObject(parent)
     , m_engine(engine)
     , m_dataModel(new DataModel(this))
+    , m_tradingDataModel(new DataModel (this))
     , m_server(new WebSocketServer(this))
     , m_database(new DatabaseManager(this))
     , m_processor(new DataProcessor(this))
@@ -59,6 +60,11 @@ MainController::MainController(QQmlApplicationEngine* engine, QObject *parent)
     // Новые свечи в реальном времени
     connect(m_exchangeClient, &ExchangeClient::newCandleTick,
             this, &MainController::onNewCandleTick);
+
+    // Быстрый поток цены ("@trade) - отдельно от свечей, только для верхней
+    // панели Price/Change/Update
+    connect(m_exchangeClient, &ExchangeClient::tradeReceived,
+            this, &MainController::onTradePriceReceived);
 
     // Ошибки
     connect(m_exchangeClient, &ExchangeClient::errorOccurred,
@@ -364,6 +370,9 @@ void MainController::exportToPDF()
 void MainController::clearData()
 {
     m_dataModel->clear();
+    if (m_tradingDataModel) {
+        m_tradingDataModel->clear();
+    }
     m_pointIndex = 0;
     m_weatherIndex = 0;
     emit clearGraphRequested();
@@ -411,6 +420,17 @@ void MainController::onCandlesLoaded(const QList<CandleData>& candles)
     m_candleModel->setCandles(candles);
     m_chartManager->updateSeries(m_candleModel);
 
+    // Отдельная таблица событий для вкладки Биржа (по аналогии с таблицей погоды)
+    // Перезаполняем при каждой новой загрузке истории.
+    if (m_tradingDataModel) {
+        m_tradingDataModel->clear();
+        for (const CandleData& c : candles) {
+            DataPoint point(QDateTime::fromMSecsSinceEpoch(c.closeTime),
+                            "price", c.close, m_exchangeClient->symbol());
+            m_tradingDataModel->addDataPoint(point);
+        }
+    }
+
     if (!candles.isEmpty()) {
         updateTickerInfo(candles.last());
     }
@@ -438,6 +458,16 @@ void MainController::onNewCandleTick(const CandleData& candle)
     m_candleModel->addOrUpdateCandle(candle);
     m_chartManager->updateLastCandle(candle);
     updateTickerInfo(candle);
+
+    /**Пишем в таблицу только по настоящему закрытые свечи, а не каждый
+       промежуточный тик(иначе таблица заспамится десятками строк в минуту)
+    **/
+
+    if (m_tradingDataModel && candle.isClosed) {
+        DataPoint point(QDateTime::fromMSecsSinceEpoch(candle.closeTime),
+                        "price", candle.close, m_exchangeClient->symbol());
+        m_tradingDataModel->addDataPoint(point);
+    }
     emit candlesUpdated();
 }
 
@@ -483,13 +513,11 @@ void MainController::stopRealtime()
 
 void MainController::updateTickerInfo(const CandleData& candle)
 {
-    if (!m_currentPrice.isEmpty()) {
-        m_previousPrice = m_currentPrice;
-        emit previousPriceChanged();
-    }
 
-    m_currentPrice = QString::number(candle.close, 'f', 2);
-    emit currentPriceChanged();
+    /* Price/Change/Update теперь ведет onTradePriceReceived() (быстрый поток
+     * @trade) - здесь остаются только High/Low/Volume, которые действительно
+     * берутся из текущей свечи и не имеют смысла на потоке отдельных сделок.
+     */
 
     if (m_highPrice.isEmpty() || candle.high > m_highPrice.toDouble()) {
         m_highPrice = QString::number(candle.high, 'f', 2);
@@ -502,15 +530,29 @@ void MainController::updateTickerInfo(const CandleData& candle)
 
     m_volume = QString::number(candle.volume, 'f', 2);
     emit volumeChanged();
+}
+
+
+void MainController::onTradePriceReceived(double price, qint64 tradeTimeMs)
+{
+    Q_UNUSED(tradeTimeMs)
+
+    if (!m_currentPrice.isEmpty()) {
+        m_previousPrice = m_currentPrice;
+        emit previousPriceChanged();
+    }
+
+    m_currentPrice = QString::number(price, 'f', 2);
+    emit currentPriceChanged();
 
     m_lastUpdateTime = QDateTime::currentDateTime().toString("hh:mm:ss");
     emit lastUpdateTimeChanged();
 
     if (!m_previousPrice.isEmpty()) {
         double prev = m_previousPrice.toDouble();
-        double curr = candle.close;
-        double change = curr - prev;
-        double changePercent = (change / prev) * 100.0;
+        //double curr = candle.close;
+        double change = price - prev;
+        double changePercent = prev != 0.0 ? (change / prev) * 100.0 : 0.0;
 
         m_priceChange = QString::number(change, 'f', 2);
         m_priceChangePercent = QString::number(changePercent, 'f', 2) + "%";

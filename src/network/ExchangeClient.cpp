@@ -18,6 +18,7 @@ ExchangeClient::ExchangeClient(QObject *parent)
 ExchangeClient::~ExchangeClient()
 {
     closeRealtime();
+    closeTradeStream();
     qDebug() << "ExchangeClient destroyed";
 }
 
@@ -41,6 +42,9 @@ void ExchangeClient::loadMarket(const QString& symbol, Interval interval, int li
     // Закрываем старый WebSocket, но не открываем новый автоматически
     if (m_webSocket) {
         closeRealtime();
+    }
+    if (m_tradeWebSocket) {
+        closeTradeStream();
     }
 
     // Обновляем параметры
@@ -67,6 +71,7 @@ void ExchangeClient::loadMarket(const QString& symbol, Interval interval, int li
 
         qDebug() << "Starting realtime for" << m_symbol << intervalToString(m_interval);
         openRealtime(m_symbol, m_interval);
+        openTradeStream(m_symbol);
 }
 
 void ExchangeClient::stopRealtime()
@@ -78,6 +83,7 @@ void ExchangeClient::stopRealtime()
 
     qDebug() << "Stopping realtime";
     closeRealtime();
+    closeTradeStream();
     setState(ClientState::Idle);
   }
 
@@ -198,6 +204,69 @@ void ExchangeClient::closeRealtime()
     emit connectionStatusChanged(false);
 }
 
+/* Отдельный, быстрый поток отдельных сделок (@trade) - только для верхней
+ * панели цены. Обновляется на каждую сделку, а не раз в секунду как klines.
+ * Без авто-рекконекта, если оборвется - просто ждет следующего startRealtime()
+*/
+void ExchangeClient::openTradeStream(const QString& symbol)
+{
+    if (m_tradeWebSocket) {
+        qDebug() << "Trade WebSocket already exists, closing first";
+        closeTradeStream();
+    }
+
+    m_tradeWebSocket = new QWebSocket(QString(), QWebSocketProtocol::VersionLatest, this);
+    qDebug() << "Trade WebSocket" << static_cast<void*>(m_tradeWebSocket.data()) << "created";
+
+    connect(m_tradeWebSocket, &QWebSocket::textMessageReceived,
+            this, &ExchangeClient::onTradeWebSocketTextMessageReceived);
+
+    QString wsUrl = QString("wss://stream.binance.com:9443/ws/%1@trade")
+                        .arg(symbol.toLower());
+
+    qDebug() << "Connecting to Binance trade WebSocket:" << wsUrl;
+    m_tradeWebSocket->open(QUrl(wsUrl));
+}
+
+void ExchangeClient::closeTradeStream()
+{
+    if (!m_tradeWebSocket) {
+        return;
+    }
+
+    qDebug() << "Closing trade WebSocket" << static_cast<void*>(m_tradeWebSocket.data());
+
+    disconnect(m_tradeWebSocket, nullptr, this, nullptr);
+
+    QWebSocket* socket = m_tradeWebSocket;
+    m_tradeWebSocket = nullptr;
+
+    connect(socket, &QWebSocket::disconnected,
+            socket, &QObject::deleteLater,
+            Qt::SingleShotConnection);
+
+    socket->close();
+}
+
+
+void ExchangeClient::onTradeWebSocketTextMessageReceived(const QString& message)
+{
+    QJsonDocument doc = QJsonDocument::fromJson(message.toUtf8());
+    if (doc.isNull() || !doc.isObject()) {
+        return;
+    }
+
+    QJsonObject root = doc.object();
+    if (!root.contains("p") || !root.contains("T")) {
+        return;
+    }
+
+    double price = root["p"].toString().toDouble();
+    qint64 tradeTime = root["T"].toVariant().toLongLong();
+
+    emit tradeReceived(price, tradeTime);
+}
+
 bool ExchangeClient::isRealtimeConnected() const
 {
     return m_webSocket && m_webSocket->state() == QAbstractSocket::ConnectedState;
@@ -255,7 +324,7 @@ void ExchangeClient::onWebSocketError(QAbstractSocket::SocketError error)
     if (!m_manualClose) {
         QTimer::singleShot(3000, this, [this]() {
             if (!isRealtimeConnected() && m_state == ClientState::Error) {
-                qDebug() << "🔄 Reconnecting after error...";
+                qDebug() << "Reconnecting after error...";
                 openRealtime(m_symbol, m_interval);
             }
         });

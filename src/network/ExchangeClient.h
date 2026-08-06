@@ -47,6 +47,11 @@ signals:
     void newCandleTick(const CandleData& candle);
     void errorOccurred(const QString& error);
     void connectionStatusChanged(bool connected);
+    /**Отдельный, гораздо более быстрый поток цены (@trade) - обновляется на
+       каждую реальную сделку на бирже, а не раз в секунду как поток свечей
+       используется только для верхней панели цены, график свечей не трогает
+    **/
+    void tradeReceived(double price, qint64 tradeTimeMs);
 
 private slots:
     void onRestReplyFinished(QNetworkReply* reply);
@@ -54,6 +59,7 @@ private slots:
     void onWebSocketTextMessageReceived(const QString& message);
     void onWebSocketDisconnected();
     void onWebSocketError(QAbstractSocket::SocketError error);
+    void onTradeWebSocketTextMessageReceived(const QString& message);
 
 private:
     // Вспомогательные методы
@@ -62,6 +68,8 @@ private:
     void fetchHistory(const QString& symbol, Interval interval, int limit);
     void openRealtime(const QString& symbol, Interval interval);
     void closeRealtime();
+    void openTradeStream(const QString& symbol);
+    void closeTradeStream();
     void scheduleReconnect();
     static QString intervalToString(Interval interval);
 
@@ -69,9 +77,12 @@ private:
     QNetworkAccessManager* m_networkManager;
     quint64 m_requestId = 0;
 
-    // WebSocket
+    // WebSocket (свечи)
     QPointer<QWebSocket> m_webSocket;
     bool m_manualClose = false;
+
+    // WebSocket (быстрый поток отдельных сделок, только для цены)
+    QPointer<QWebSocket> m_tradeWebSocket;
 
     // Состояние
     ClientState m_state = ClientState::Idle;
