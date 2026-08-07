@@ -37,6 +37,8 @@ qt_add_executable(DataMonitorPro
     src/core/SecretManager.h
     src/network/ExchangeClient.cpp
     src/network/ExchangeClient.h
+    src/network/TriangularArbitrageMonitor.cpp
+    src/network/TriangularArbitrageMonitor.h
     src/models/CandleData.h
     src/models/CandleModel.cpp
     src/models/CandleModel.h
@@ -87,6 +89,8 @@ qt_add_qml_module(DataMonitorPro
         SOURCES src/models/CandleModel.cpp
         SOURCES src/chart/TradingChartManager.h
         SOURCES src/chart/TradingChartManager.cpp
+        SOURCES src/network/TriangularArbitrageMonitor.h
+        SOURCES src/network/TriangularArbitrageMonitor.cpp
         #QML_FILES qml/DataTableView.qml
 
 )

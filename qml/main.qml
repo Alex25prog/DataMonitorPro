@@ -4,6 +4,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Controls 2.15
 
+// DataTableView (таблица Время/Тип/Значение/Единица/Детали) вынесена в
+// отдельный файл qml/DataTableView.qml — Qt Quick подхватывает его
+// автоматически, никакого import не требуется, т.к. файл лежит рядом.
 
 ApplicationWindow {
     id: root
@@ -1561,6 +1564,121 @@ ApplicationWindow {
                            }
                        }
 
+                       // Панель треугольного арбитража (пока только рсчет и отображение,
+                       // реальные ордера не выставляются
+
+                       Rectangle {
+                           id: triangularArbitragePanel
+                           SplitView.preferredHeight: 96
+                           SplitView.minimumHeight: 80
+                           Layout.fillWidth: true
+                           color: "#1a1a1a"
+                           visible: showTradingGraph
+                           border.color: "#2d2d2d"
+                           border.width: 1
+
+                           ColumnLayout {
+                               anchors.fill: parent
+                               anchors.margins: 10
+                               spacing: 6
+
+                               RowLayout {
+                                   Layout.fillWidth: true
+
+                                   Label {
+                                       text: qsTr("Triangular Arbitrage") + " (BTC/ETH/USDT)"
+                                       color: "#e0e0e0"
+                                       font.bold: true
+                                       font.pixelSize: 13
+                                       Layout.fillWidth: true
+                                   }
+
+                                   Button {
+                                       id: triArbToggleButton
+                                        text: controller.triangularArbitrage.isRunning ? qsTr("Stop") : qsTr("Start")
+                                        implicitHeight: 26
+
+                                        background: Rectangle {
+                                            color: controller.triangularArbitrage.isRunning ? "#c62828" : "#2e7d32"
+                                            radius: 4
+                                            opacity: parent.pressed ? 0.7 : 1.0
+                                   }
+                                        contentItem: Text {
+                                            text: triArbToggleButton.text
+                                            color: "white"
+                                            font.pixelSize: 11
+                                            font.bold: true
+                                            horizontalAlignment: Text.AlignHCenter
+                                            verticalAlignment: Text.AlignVCenter
+                                    }
+                                        onClicked: {
+                                            if (controller.triangularArbitrage.isRunning) {
+                                                controller.triangularArbitrage.stop()
+                                            } else {
+                                                controller.triangularArbitrage.start()
+                                            }
+                                        }
+                                   }
+                               }
+
+                               RowLayout {
+                                   Layout.fillWidth: true
+                                   spacing: 24
+
+                                   Label {
+                                       text: qsTr("Forward") + " (USDT\u2192BTC\u2192ETH\u2192USDT): " +
+                                            controller.triangularArbitrage.forwardProfitPercent.toFixed(3) + "%"
+                                        font.pixelSize: 12
+                                        font.bold: true
+                                        color: controller.triangularArbitrage.forwardProfitPercent > controller.triangularArbitrage.feePercent
+                                            ? "#4caf50" : "#8a8a8a"
+                                   }
+
+                                   Label {
+                                       text: qsTr("Reverse") + " (USDT\u2192ETH\u2192BTC\u2192USDT): " +
+                                            controller.triangularArbitrage.reverseProfitPercent.toFixed(3) + "%"
+                                        font.pixelSize: 12
+                                        font.bold: true
+                                        color: controller.triangularArbitrage.reverseProfitPercent > controller.triangularArbitrage.feePercent
+                                            ? "#4caf50" : "#8a8a8a"
+                                   }
+
+                                   Item { Layout.fillWidth: true }
+
+                                   Label {
+                                       text: qsTr("Update") + ": " + (controller.triangularArbitrage.lastUpdateTime || "--")
+                                       font.pixelSize: 11
+                                       color: "#666666"
+                                   }
+                               }
+
+                               RowLayout {
+                                   Layout.fillWidth: true
+                                   spacing: 20
+
+                                   Label {
+                                        text: "BTCUSDT " + controller.triangularArbitrage.bidA.toFixed(2) + " / " + controller.triangularArbitrage.askA.toFixed(2)
+                                        font.pixelSize: 10
+                                        font.family: "Consolas"
+                                        color: "#8a8a8a"
+                                   }
+                                   Label {
+                                        text: "ETHUSDT " + controller.triangularArbitrage.bidB.toFixed(2) + " / " + controller.triangularArbitrage.askB.toFixed(2)
+                                        font.pixelSize: 10
+                                        font.family: "Consolas"
+                                        color: "#8a8a8a"
+                                   }
+                                   Label {
+                                        text: "ETHBTC " + controller.triangularArbitrage.bidC.toFixed(6) + " / " + controller.triangularArbitrage.askC.toFixed(6)
+                                        font.pixelSize: 10
+                                        font.family: "Consolas"
+                                        color: "#8a8a8a"
+                                   }
+                               }
+                           }
+
+                       }
+
                        // ТАБЛИЦА ДАННЫХ(своя для погоды и своя дл биржи,
                        // переключаются вместе с graph-вкладками (showWeatherGraph/
                        // showTradingGraph), как и графики выше.
@@ -1590,7 +1708,7 @@ ApplicationWindow {
                            anchors.fill: parent
                            anchors.margins: 10
 
-                           Label { text: qsTr("Total points:") + " " + controller.dataModel.count; color: "#B22222" }
+                           Label { text: qsTr("Total points:") + " " + (showTradingGraph ? controller.tradingDataModel.count : controller.dataModel.count); color: "#B22222" }
                            Label { text: "|" }
 
                            Label {

@@ -12,6 +12,7 @@
 #include "../network/WeatherFetcher.h"
 #include "../export/ReportExporter.h"
 #include "../network/ExchangeClient.h"
+#include "../network/TriangularArbitrageMonitor.h"
 #include "../models/CandleModel.h"
 #include "../chart/TradingChartManager.h"
 
@@ -33,6 +34,7 @@ class MainController : public QObject
     Q_PROPERTY(DataModel* dataModel READ dataModel CONSTANT)
     Q_PROPERTY(DataModel* tradingDataModel READ tradingDataModel CONSTANT)
     Q_PROPERTY(CandleModel* candleModel READ candleModel CONSTANT)
+    Q_PROPERTY(TriangularArbitrageMonitor* triangularArbitrage READ triangularArbitrage CONSTANT)
 
     Q_PROPERTY(bool isServerRunning READ isServerRunning NOTIFY serverRunningChanged)
     Q_PROPERTY(bool isWeatherRunning READ isWeatherRunning NOTIFY weatherRunningChanged)
@@ -61,6 +63,7 @@ public:
     // Геттеры для QML
     DataModel* dataModel() const { return m_dataModel; }
     DataModel* tradingDataModel() const { return m_tradingDataModel; }
+    TriangularArbitrageMonitor* triangularArbitrage() const { return m_triangularArbitrage; }
     bool isServerRunning() const { return m_serverRunning; }
     bool isWeatherRunning() const { return m_weatherRunning; }
     bool isCitySelected() const { return m_citySelected; }
@@ -170,6 +173,7 @@ private:
     // Основные компоненты
     DataModel* m_dataModel;
     DataModel* m_tradingDataModel; // Отдельная таблица событий для вкладки Биржа
+    TriangularArbitrageMonitor* m_triangularArbitrage;
     WebSocketServer* m_server;
     DatabaseManager* m_database;
     DataProcessor* m_processor;
