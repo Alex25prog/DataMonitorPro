@@ -47,4 +47,3 @@ jobs:
           name: DataMonitorPro-windows
           path: build/**/DataMonitorPro.exe
           if-no-files-found: warn
-EOF
