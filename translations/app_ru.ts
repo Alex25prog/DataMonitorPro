@@ -404,5 +404,88 @@
         <source>Weather:</source>
         <translation>Погода:</translation>
     </message>
+    <message>
+        <location filename="../qml/main.qml" line="1420"/>
+        <source>Change 24h</source>
+        <translation>Изменения за 24ч</translation>
+    </message>
+    <message>
+        <location filename="../qml/main.qml" line="1467"/>
+        <source>24h High</source>
+        <translation>Максимум за 24ч</translation>
+    </message>
+    <message>
+        <location filename="../qml/main.qml" line="1494"/>
+        <source>24h Low</source>
+        <translation>Минимум за 24ч</translation>
+    </message>
+    <message>
+        <location filename="../qml/main.qml" line="1521"/>
+        <source>Volume</source>
+        <translation>Объём</translation>
+    </message>
+    <message>
+        <location filename="../qml/main.qml" line="1548"/>
+        <source>Updated</source>
+        <translation>Обновлено</translation>
+    </message>
+    <message>
+        <location filename="../qml/main.qml" line="1589"/>
+        <source>Triangular Arbitrage</source>
+        <translation>Треугольный арбитраж</translation>
+    </message>
+    <message>
+        <location filename="../qml/main.qml" line="1689"/>
+        <source>No weather data yet - start weather monitoring</source>
+        <translation>Данных о погоде пока нет — запустите мониторинг погоды</translation>
+    </message>
+    <message>
+        <location filename="../qml/main.qml" line="1696"/>
+        <source>No trading data yet - load history or start realtime</source>
+        <translation>Данных по бирже пока нет — загрузите историю или запустите реальное время</translation>
+    </message>
+    <message>
+        <location filename="../qml/main.qml" line="1309"/>
+        <source>City</source>
+        <translation>Город</translation>
+    </message>
+    <message>
+        <location filename="../qml/main.qml" line="1338"/>
+        <source>Condition</source>
+        <translation>Условия</translation>
+    </message>
+</context>
+<context>
+    <name>DataTableView</name>
+    <message>
+        <location filename="../qml/DataTableView.qml" line="12"/>
+        <source>No data yet</source>
+        <translation>Данных пока нет</translation>
+     </message>
+    <message>
+        <location filename="../qml/DataTableView.qml" line="54"/>
+        <source>TIME</source>
+        <translation>ВРЕМЯ</translation>
+    </message>
+    <message>
+        <location filename="../qml/DataTableView.qml" line="55"/>
+        <source>TYPE</source>
+        <translation>ТИП</translation>
+    </message>
+    <message>
+        <location filename="../qml/DataTableView.qml" line="56"/>
+        <source>VALUE</source>
+        <translation>ЗНАЧЕНИЕ</translation>
+    </message>
+    <message>
+        <location filename="../qml/DataTableView.qml" line="57"/>
+        <source>UNIT</source>
+        <translation>ЕДИНИЦА</translation>
+    </message>
+    <message>
+        <location filename="../qml/DataTableView.qml" line="58"/>
+        <source>DETAILS</source>
+        <translation>ДЕТАЛИ</translation>
+    </message>
 </context>
 </TS>

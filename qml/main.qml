@@ -413,6 +413,75 @@ ApplicationWindow {
                     radius: 8
                     border.color: "#c0c0c0"
                 }
+
+                // Иконка глобуса EN/RU
+                contentItem: Row {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 6
+
+                    Canvas {
+                        id: globeIcon
+                        width: 16
+                        height: 16
+                        anchors.verticalCenter: parent.verticalCenter
+                        onPaint: {
+                            var ctx = getContext("2d")
+                            ctx.reset()
+                            ctx.strokeStyle = "#2c3e50"
+                            ctx.lineWidth = 1.2
+
+                            var cx = width / 2
+                            var cy = height / 2
+                            var r = width / 2 - 1
+
+                            // Внешний круг
+                            ctx.beginPath()
+                            ctx.arc(cx, cy, r, 0, Math.PI * 2)
+                            ctx.stroke()
+
+                            // Вертикальный меридиан - эллипс через сжатие
+                            ctx.save()
+                            ctx.translate(cx, cy)
+                            ctx.scale(0.42, 1)
+                            ctx.beginPath()
+                            ctx.arc(0, 0, r, 0, Math.PI * 2)
+                            ctx.stroke()
+                            ctx.restore()
+
+                            // Экватор
+                            ctx.beginPath()
+                            ctx.moveTo(cx - r, cy)
+                            ctx.lineTo(cx + r, cy)
+                            ctx.stroke()
+
+                            // Верхняя параллель
+                            var y1 = cy - r * 0.5
+                            var hw1 = Math.sqrt(Math.max(0, r * r - (y1 - cy) * (y1 - cy)))
+                            ctx.beginPath()
+                            ctx.moveTo(cx - hw1, y1)
+                            ctx.lineTo(cx + hw1, y1)
+                            ctx.stroke()
+
+                            // Нижняя параллель
+                            var y2 = cy + r * 0.5
+                            var hw2 = Math.sqrt(Math.max(0, r * r - (y2 - cy) * (y2 - cy)))
+                            ctx.beginPath()
+                            ctx.moveTo(cx - hw2, y2)
+                            ctx.lineTo(cx + hw2, y2)
+                            ctx.stroke()
+                        }
+                    }
+
+                    Text {
+                        text: langSelector.currentText
+                        color: "#2c3e50"
+                        font.bold: true
+                        font.pixelSize: 13
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
             }
 
             Item {
@@ -644,13 +713,13 @@ ApplicationWindow {
                 background: Rectangle {
                     color: {
                         if (!enabled) return "#999999"
-                        return controller.isWeatherRunning ? "#2e7d32" : "#c62828"
+                        return controller.isWeatherRunning ? "#2e7d32" : "#1565c0"
                     }
                     radius: 15
                     border.width: 1
                     border.color: {
                         if (!enabled) return "#666666"
-                        return controller.isWeatherRunning ? "#4caf50" : "#ef5053"
+                        return controller.isWeatherRunning ? "#4caf50" : "#1565c0"
                     }
                     opacity: parent.pressed && enabled ? 0.7 : 1.0
 
@@ -1314,7 +1383,7 @@ ApplicationWindow {
 
                                        Text {
                                            id: weatherCityValue
-                                           text: controller.weatherCity || "--"
+                                           text: controller.weatherCity ? qsTr(controller.weatherCity) : "--"
                                            color: "#ffffff"
                                            font.pixelSize: 14
                                            font.bold: true
@@ -1343,7 +1412,7 @@ ApplicationWindow {
 
                                        Text {
                                            id: weatherDescValue
-                                           text: "--"
+                                           text: controller.weatherDescription || "--"
                                            color: "#ffffff"
                                            font.pixelSize: 12
                                            font.bold: true
