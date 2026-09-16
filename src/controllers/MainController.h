@@ -11,8 +11,11 @@
 #include "../core/DataProcessor.h"
 #include "../network/WeatherFetcher.h"
 #include "../export/ReportExporter.h"
-#include "../network/ExchangeClient.h"
+#include "../network/ExchangeManager.h"
+#include "../network/BinanceExchangeClient.h"
+#include "../network/BybitExchangeClient.h"
 #include "../network/TriangularArbitrageMonitor.h"
+#include "../network/Bybittriangulararbitragemonitor.h"
 #include "../models/CandleModel.h"
 #include "../chart/TradingChartManager.h"
 
@@ -23,7 +26,7 @@
  * Сохранение в PostgreSQL (DatabaseManager)
  * Отображение в QML (DataModel)
  * Автоматический сбор погоды (WeatherFetcher)
- * Работа с биржей (ExchangeClient)
+ * Работа с биржей (ExchangeManager: Binance, Bybit, ...)
  */
 class MainController : public QObject
 {
@@ -35,12 +38,15 @@ class MainController : public QObject
     Q_PROPERTY(DataModel* tradingDataModel READ tradingDataModel CONSTANT)
     Q_PROPERTY(CandleModel* candleModel READ candleModel CONSTANT)
     Q_PROPERTY(TriangularArbitrageMonitor* triangularArbitrage READ triangularArbitrage CONSTANT)
+    Q_PROPERTY(BybitTriangularArbitrageMonitor* bybitTriangularArbitrage READ bybitTriangularArbitrage CONSTANT)
 
     Q_PROPERTY(bool isServerRunning READ isServerRunning NOTIFY serverRunningChanged)
     Q_PROPERTY(bool isWeatherRunning READ isWeatherRunning NOTIFY weatherRunningChanged)
     Q_PROPERTY(bool isCitySelected READ isCitySelected NOTIFY citySelectedChanged)
     Q_PROPERTY(bool isLoading READ isLoading NOTIFY isLoadingChanged)
     Q_PROPERTY(bool isRealtimeConnected READ isRealtimeConnected NOTIFY realtimeConnectedChanged)
+    Q_PROPERTY(QStringList availableExchanges READ availableExchanges CONSTANT)
+    Q_PROPERTY(QString currentExchange READ currentExchange NOTIFY currentExchangeChanged)
 
     // Информационная панель биржи
     Q_PROPERTY(QString currentPrice READ currentPrice NOTIFY currentPriceChanged)
@@ -64,11 +70,14 @@ public:
     DataModel* dataModel() const { return m_dataModel; }
     DataModel* tradingDataModel() const { return m_tradingDataModel; }
     TriangularArbitrageMonitor* triangularArbitrage() const { return m_triangularArbitrage; }
+    BybitTriangularArbitrageMonitor* bybitTriangularArbitrage() const { return m_bybitTriangularArbitrage; }
     bool isServerRunning() const { return m_serverRunning; }
     bool isWeatherRunning() const { return m_weatherRunning; }
     bool isCitySelected() const { return m_citySelected; }
     bool isLoading() const { return m_isLoadingCandles; }
-    bool isRealtimeConnected() const { return m_exchangeClient && m_exchangeClient->isRealtimeConnected(); }
+    bool isRealtimeConnected() const { return m_exchangeManager && m_exchangeManager->isRealtimeConnected(); }
+    QStringList availableExchanges() const { return m_exchangeManager ? m_exchangeManager->availableExchanges() : QStringList(); }
+    QString currentExchange() const { return m_exchangeManager ? m_exchangeManager->currentExchangeName() : QString(); }
     TradingChartManager* chartManager() const { return m_chartManager; }
     CandleModel* candleModel() const { return m_candleModel; }
 
@@ -115,6 +124,7 @@ public:
 
     Q_INVOKABLE void startRealtime(); // Явное подключение WebSocket к уже загруженному рынку
     Q_INVOKABLE void stopRealtime();  // Явное отключение WebSocket
+    Q_INVOKABLE void switchExchange(const QString& name); // Переключение активной биржи
 
 signals:
     // Сервер
@@ -134,6 +144,7 @@ signals:
     void candlesUpdated();
     void isLoadingChanged();
     void realtimeConnectedChanged();
+    void currentExchangeChanged();
 
     // Информационная панель биржи
     void currentPriceChanged();
@@ -174,6 +185,7 @@ private:
     DataModel* m_dataModel;
     DataModel* m_tradingDataModel; // Отдельная таблица событий для вкладки Биржа
     TriangularArbitrageMonitor* m_triangularArbitrage;
+    BybitTriangularArbitrageMonitor* m_bybitTriangularArbitrage;
     WebSocketServer* m_server;
     DatabaseManager* m_database;
     DataProcessor* m_processor;
@@ -181,7 +193,8 @@ private:
     ReportExporter* m_exporter;
 
     // Биржа
-    ExchangeClient* m_exchangeClient;
+    ExchangeManager* m_exchangeManager;
+    BinanceExchangeClient* m_binanceAdapter; // держим прямую ссылку на конкретный тип для регистрации в ExchangeManager
     CandleModel* m_candleModel;
     TradingChartManager* m_chartManager;
 

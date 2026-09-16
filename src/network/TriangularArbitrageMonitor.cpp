@@ -19,7 +19,7 @@ TriangularArbitrageMonitor::~TriangularArbitrageMonitor()
 
 void TriangularArbitrageMonitor::start()
 {
-    if (m_webSocket) {
+    if (m_webSocket && m_webSocket->state() == QAbstractSocket::ConnectedState) {
         qDebug() << "Triangular arbitrage monitor already running";
         return;
     }
@@ -84,6 +84,18 @@ void TriangularArbitrageMonitor::onConnected()
 void TriangularArbitrageMonitor::onDisconnected()
 {
     qDebug() << "Triangular arbitrage stream disconnected";
+
+    /*раньше m_webSocket не обнулялся при разрыве связи (а не по
+     *кнопке Stop) — start() видел "живой" указатель на мёртвый сокет и
+     *молча отказывался переподключаться, требуя полного перезапуска
+     *приложения.
+     */
+    if (m_webSocket) {
+        QWebSocket* socket = m_webSocket;
+        m_webSocket = nullptr;
+        disconnect(socket, nullptr, this, nullptr);
+        socket->deleteLater();
+    }
     m_isRunning = false;
     emit runningChanged();
 }

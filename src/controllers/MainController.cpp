@@ -13,6 +13,7 @@ MainController::MainController(QQmlApplicationEngine* engine, QObject *parent)
     , m_dataModel(new DataModel(this))
     , m_tradingDataModel(new DataModel (this))
     , m_triangularArbitrage(new TriangularArbitrageMonitor(this))
+    , m_bybitTriangularArbitrage(new BybitTriangularArbitrageMonitor(this))
     , m_server(new WebSocketServer(this))
     , m_database(new DatabaseManager(this))
     , m_processor(new DataProcessor(this))
@@ -20,7 +21,8 @@ MainController::MainController(QQmlApplicationEngine* engine, QObject *parent)
     , m_weatherFetcher(new WeatherFetcher(this))
     , m_pointIndex(0)
     , m_weatherIndex(0)
-    , m_exchangeClient(new ExchangeClient(this))
+    , m_exchangeManager(new ExchangeManager(this))
+    , m_binanceAdapter(new BinanceExchangeClient(this))
     , m_candleModel(new CandleModel(this))
     , m_chartManager(new TradingChartManager(this))
 {
@@ -52,30 +54,44 @@ MainController::MainController(QQmlApplicationEngine* engine, QObject *parent)
             });
 
 
-    // BINANCE EXCHANGE (НОВЫЙ API)
+    // EXCHANGE (МУЛЬТИБИРЖЕВОЙ API)
+
+    // Регистрируем адаптеры. Binance был и остаётся первым (значит активным
+    // по умолчанию) — поведение по умолчанию не меняется.
+    m_exchangeManager->registerAdapter("Binance", m_binanceAdapter);
+    m_exchangeManager->registerAdapter("Bybit", new BybitExchangeClient(this));
 
     // Загрузка истории
-    connect(m_exchangeClient, &ExchangeClient::candlesLoaded,
+    connect(m_exchangeManager, &ExchangeManager::candlesLoaded,
             this, &MainController::onCandlesLoaded);
 
     // Новые свечи в реальном времени
-    connect(m_exchangeClient, &ExchangeClient::newCandleTick,
+    connect(m_exchangeManager, &ExchangeManager::newCandleTick,
             this, &MainController::onNewCandleTick);
 
-    // Быстрый поток цены ("@trade) - отдельно от свечей, только для верхней
-    // панели Price/Change/Update
-    connect(m_exchangeClient, &ExchangeClient::tradeReceived,
+    // Быстрый поток цены (отдельные сделки биржи) — теперь часть общего
+    // интерфейса IExchangeAdapter (поддерживают и Binance, и Bybit), поэтому
+    // подключаемся через ExchangeManager — работает независимо от того,
+    // какая биржа сейчас активна, а не только для Binance.
+    connect(m_exchangeManager, &ExchangeManager::tradeReceived,
             this, &MainController::onTradePriceReceived);
 
     // Ошибки
-    connect(m_exchangeClient, &ExchangeClient::errorOccurred,
+    connect(m_exchangeManager, &ExchangeManager::errorOccurred,
             this, &MainController::onExchangeError);
 
     // Статус подключения
-    connect(m_exchangeClient, &ExchangeClient::connectionStatusChanged,
+    connect(m_exchangeManager, &ExchangeManager::connectionStatusChanged,
             this, [this](bool connected) {
                 qDebug() << "Exchange connection status:" << (connected ? "Connected" : "Disconnected");
 
+                emit realtimeConnectedChanged();
+            });
+
+    // Смена активной биржи
+    connect(m_exchangeManager, &ExchangeManager::exchangeChanged,
+            this, [this](const QString&) {
+                emit currentExchangeChanged();
                 emit realtimeConnectedChanged();
             });
 
@@ -136,8 +152,8 @@ MainController::~MainController()
 {
     qDebug() << "=== MainController destructor START ===";
 
-    if (m_exchangeClient) {
-        // closeRealtime() вызывается в деструкторе ExchangeClient
+    if (m_exchangeManager) {
+        // closeRealtime() вызывается в деструкторе каждого адаптера
         // но мы можем явно остановить
     }
 
@@ -383,7 +399,7 @@ void MainController::clearData()
 // БИРЖА (НОВЫЙ API)
 void MainController::loadCandles(const QString& symbol, int intervalIndex, int limit)
 {
-    if (!m_exchangeClient) return;
+    if (!m_exchangeManager) return;
 
     if (m_isLoadingCandles) {
         qDebug() << "Already loading, ignoring...";
@@ -406,7 +422,7 @@ void MainController::loadCandles(const QString& symbol, int intervalIndex, int l
     emit clearGraphRequested();
 
     // Единый метод загрузки рынка
-    m_exchangeClient->loadMarket(useSymbol, interval, limit);
+    m_exchangeManager->loadMarket(useSymbol, interval, limit);
 
     qDebug() << "Loading market:" << useSymbol << "interval:" << intervalIndex << "limit:" << limit;
 }
@@ -427,7 +443,7 @@ void MainController::onCandlesLoaded(const QList<CandleData>& candles)
         m_tradingDataModel->clear();
         for (const CandleData& c : candles) {
             DataPoint point(QDateTime::fromMSecsSinceEpoch(c.closeTime),
-                            "price", c.close, m_exchangeClient->symbol());
+                            "price", c.close, m_exchangeManager->symbol());
             m_tradingDataModel->addDataPoint(point);
         }
     }
@@ -451,7 +467,7 @@ void MainController::onNewCandleTick(const CandleData& candle)
         return;
     }
 
-    if (!m_exchangeClient->isRealtimeConnected()) {
+    if (!m_exchangeManager->isRealtimeConnected()) {
         qDebug() << "Ignoring candle - not connected";
         return;
     }
@@ -466,7 +482,7 @@ void MainController::onNewCandleTick(const CandleData& candle)
 
     if (m_tradingDataModel && candle.isClosed) {
         DataPoint point(QDateTime::fromMSecsSinceEpoch(candle.closeTime),
-                        "price", candle.close, m_exchangeClient->symbol());
+                        "price", candle.close, m_exchangeManager->symbol());
         m_tradingDataModel->addDataPoint(point);
     }
     emit candlesUpdated();
@@ -502,14 +518,20 @@ void MainController::addCandle(double open, double high, double low, double clos
 
 void MainController::startRealtime()
 {
-    if (!m_exchangeClient) return;
-    m_exchangeClient->startRealtime();
+    if (!m_exchangeManager) return;
+    m_exchangeManager->startRealtime();
 }
 
 void MainController::stopRealtime()
 {
-    if (!m_exchangeClient) return;
-    m_exchangeClient->stopRealtime();
+    if (!m_exchangeManager) return;
+    m_exchangeManager->stopRealtime();
+}
+
+void MainController::switchExchange(const QString& name)
+{
+    if (!m_exchangeManager) return;
+    m_exchangeManager->switchExchange(name);
 }
 
 void MainController::updateTickerInfo(const CandleData& candle)

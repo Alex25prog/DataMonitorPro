@@ -1,18 +1,16 @@
-#ifndef EXCHANGECLIENT_H
-#define EXCHANGECLIENT_H
+#ifndef BINANCEEXCHANGECLIENT_H
+#define BINANCEEXCHANGECLIENT_H
 
 #include <QObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QtWebSockets/QWebSocket>
 #include <QPointer>
+#include "IExchangeAdapter.h"
 #include "../models/CandleData.h"
 
-// Перечисления должны быть объявлены ПЕРЕД классом
-enum class Interval {
-    M1, M5, M15, M30, H1, H4, D1
-};
-
+// ClientState — внутреннее состояние конкретно этой реализации (Binance),
+// не часть общего контракта IExchangeAdapter.
 enum class ClientState {
     Idle,
     LoadingHistory,
@@ -21,37 +19,37 @@ enum class ClientState {
     Error
 };
 
-class ExchangeClient : public QObject
+class BinanceExchangeClient : public IExchangeAdapter
 {
     Q_OBJECT
 
 public:
-    explicit ExchangeClient(QObject *parent = nullptr);
-    ~ExchangeClient();
+    explicit BinanceExchangeClient(QObject *parent = nullptr);
+    ~BinanceExchangeClient() override;
+
+    QString exchangeName() const override { return "Binance"; }
 
     // Единый публичный метод, только загрузка истории (REST)
-    void loadMarket(const QString& symbol, Interval interval, int limit = 100);
+    void loadMarket(const QString& symbol, Interval interval, int limit = 100) override;
 
     // Явное управление реалтайм-подпиской (WebSocket), отдельно от загрузки и истории
-    void startRealtime();
-    void stopRealtime();
+    void startRealtime() override;
+    void stopRealtime() override;
 
     // Статус
-    bool isRealtimeConnected() const;
+    bool isRealtimeConnected() const override;
     ClientState state() const { return m_state; }
-    QString symbol() const { return m_symbol; }
-    Interval interval() const { return m_interval; }
+    QString symbol() const override { return m_symbol; }
+    Interval interval() const override { return m_interval; }
 
-signals:
-    void candlesLoaded(const QList<CandleData>& candles);
-    void newCandleTick(const CandleData& candle);
-    void errorOccurred(const QString& error);
-    void connectionStatusChanged(bool connected);
+//signals:
     /**Отдельный, гораздо более быстрый поток цены (@trade) - обновляется на
        каждую реальную сделку на бирже, а не раз в секунду как поток свечей
        используется только для верхней панели цены, график свечей не трогает
+       ВАЖНО: этот сигнал специфичен для Binance, не часть IExchangeAdapter —
+       у других бирж пока нет аналогичного быстрого тикера.
     **/
-    void tradeReceived(double price, qint64 tradeTimeMs);
+    //void tradeReceived(double price, qint64 tradeTimeMs);
 
 private slots:
     void onRestReplyFinished(QNetworkReply* reply);
@@ -60,6 +58,8 @@ private slots:
     void onWebSocketDisconnected();
     void onWebSocketError(QAbstractSocket::SocketError error);
     void onTradeWebSocketTextMessageReceived(const QString& message);
+    void onTradeWebSocketDisconnected();
+    void onTradeWebSocketError(QAbstractSocket::SocketError error);
 
 private:
     // Вспомогательные методы
@@ -70,6 +70,7 @@ private:
     void closeRealtime();
     void openTradeStream(const QString& symbol);
     void closeTradeStream();
+    void scheduleTradeReconnect();
     void scheduleReconnect();
     static QString intervalToString(Interval interval);
 
@@ -80,9 +81,12 @@ private:
     // WebSocket (свечи)
     QPointer<QWebSocket> m_webSocket;
     bool m_manualClose = false;
+    bool m_reconnectScheduled = false; // Защита от двойного планирования переподключения
 
     // WebSocket (быстрый поток отдельных сделок, только для цены)
     QPointer<QWebSocket> m_tradeWebSocket;
+    bool m_tradeManualClose = false;
+    bool m_tradeReconnectScheduled = false;
 
     // Состояние
     ClientState m_state = ClientState::Idle;
@@ -91,4 +95,4 @@ private:
     qint64 m_lastCandleTime = 0;
 };
 
-#endif // EXCHANGECLIENT_H
+#endif // BINANCEEXCHANGECLIENT_H

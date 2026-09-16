@@ -413,75 +413,6 @@ ApplicationWindow {
                     radius: 8
                     border.color: "#c0c0c0"
                 }
-
-                // Иконка глобуса EN/RU
-                contentItem: Row {
-                    anchors.left: parent.left
-                    anchors.leftMargin: 10
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 6
-
-                    Canvas {
-                        id: globeIcon
-                        width: 16
-                        height: 16
-                        anchors.verticalCenter: parent.verticalCenter
-                        onPaint: {
-                            var ctx = getContext("2d")
-                            ctx.reset()
-                            ctx.strokeStyle = "#2c3e50"
-                            ctx.lineWidth = 1.2
-
-                            var cx = width / 2
-                            var cy = height / 2
-                            var r = width / 2 - 1
-
-                            // Внешний круг
-                            ctx.beginPath()
-                            ctx.arc(cx, cy, r, 0, Math.PI * 2)
-                            ctx.stroke()
-
-                            // Вертикальный меридиан - эллипс через сжатие
-                            ctx.save()
-                            ctx.translate(cx, cy)
-                            ctx.scale(0.42, 1)
-                            ctx.beginPath()
-                            ctx.arc(0, 0, r, 0, Math.PI * 2)
-                            ctx.stroke()
-                            ctx.restore()
-
-                            // Экватор
-                            ctx.beginPath()
-                            ctx.moveTo(cx - r, cy)
-                            ctx.lineTo(cx + r, cy)
-                            ctx.stroke()
-
-                            // Верхняя параллель
-                            var y1 = cy - r * 0.5
-                            var hw1 = Math.sqrt(Math.max(0, r * r - (y1 - cy) * (y1 - cy)))
-                            ctx.beginPath()
-                            ctx.moveTo(cx - hw1, y1)
-                            ctx.lineTo(cx + hw1, y1)
-                            ctx.stroke()
-
-                            // Нижняя параллель
-                            var y2 = cy + r * 0.5
-                            var hw2 = Math.sqrt(Math.max(0, r * r - (y2 - cy) * (y2 - cy)))
-                            ctx.beginPath()
-                            ctx.moveTo(cx - hw2, y2)
-                            ctx.lineTo(cx + hw2, y2)
-                            ctx.stroke()
-                        }
-                    }
-
-                    Text {
-                        text: langSelector.currentText
-                        color: "#2c3e50"
-                        font.bold: true
-                        font.pixelSize: 13
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
             }
 
             Item {
@@ -1088,6 +1019,37 @@ ApplicationWindow {
                         }
                     }
                 }
+
+                // Селектор биржи — переключает активный адаптер в
+                // ExchangeManager. После смены биржи история/realtime
+                // не подхватываются автоматически — нужно заново нажать
+                // Load BTCUSD / Start Realtime, чтобы не слать сетевые
+                // запросы молча по факту простого клика в выпадающем списке.
+                ComboBox {
+                    id: exchangeSelector
+                    model: controller.availableExchanges
+                    currentIndex: model.indexOf(controller.currentExchange)
+                    implicitWidth: 110
+
+                    onActivated: {
+                        controller.switchExchange(currentText)
+                    }
+
+                    background: Rectangle {
+                        color: "#2a2a2a"
+                        border.color: "#444444"
+                        border.width: 1
+                        radius: 5
+                    }
+
+                    contentItem: Text {
+                        leftPadding: 10
+                        text: exchangeSelector.currentText
+                        color: "white"
+                        font.bold: true
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                }
             }
 
                 LineSeries {
@@ -1383,7 +1345,7 @@ ApplicationWindow {
 
                                        Text {
                                            id: weatherCityValue
-                                           text: controller.weatherCity ? qsTr(controller.weatherCity) : "--"
+                                           text: controller.weatherCity || "--"
                                            color: "#ffffff"
                                            font.pixelSize: 14
                                            font.bold: true
@@ -1412,7 +1374,7 @@ ApplicationWindow {
 
                                        Text {
                                            id: weatherDescValue
-                                           text: controller.weatherDescription || "--"
+                                           text: "--"
                                            color: "#ffffff"
                                            font.pixelSize: 12
                                            font.bold: true
@@ -1633,119 +1595,11 @@ ApplicationWindow {
                            }
                        }
 
-                       // Панель треугольного арбитража (пока только рсчет и отображение,
-                       // реальные ордера не выставляются
-
-                       Rectangle {
-                           id: triangularArbitragePanel
-                           SplitView.preferredHeight: 96
-                           SplitView.minimumHeight: 80
-                           Layout.fillWidth: true
-                           color: "#1a1a1a"
+                       // Компактная панель треугольного арбитража — обе биржи
+                       // одной строкой каждая, вместо двух полноразмерных
+                       // блоков, чтобы оставить место таблице данных ниже.
+                       TriangularArbitragePanel {
                            visible: showTradingGraph
-                           border.color: "#2d2d2d"
-                           border.width: 1
-
-                           ColumnLayout {
-                               anchors.fill: parent
-                               anchors.margins: 10
-                               spacing: 6
-
-                               RowLayout {
-                                   Layout.fillWidth: true
-
-                                   Label {
-                                       text: qsTr("Triangular Arbitrage") + " (BTC/ETH/USDT)"
-                                       color: "#e0e0e0"
-                                       font.bold: true
-                                       font.pixelSize: 13
-                                       Layout.fillWidth: true
-                                   }
-
-                                   Button {
-                                       id: triArbToggleButton
-                                        text: controller.triangularArbitrage.isRunning ? qsTr("Stop") : qsTr("Start")
-                                        implicitHeight: 26
-
-                                        background: Rectangle {
-                                            color: controller.triangularArbitrage.isRunning ? "#c62828" : "#2e7d32"
-                                            radius: 4
-                                            opacity: parent.pressed ? 0.7 : 1.0
-                                   }
-                                        contentItem: Text {
-                                            text: triArbToggleButton.text
-                                            color: "white"
-                                            font.pixelSize: 11
-                                            font.bold: true
-                                            horizontalAlignment: Text.AlignHCenter
-                                            verticalAlignment: Text.AlignVCenter
-                                    }
-                                        onClicked: {
-                                            if (controller.triangularArbitrage.isRunning) {
-                                                controller.triangularArbitrage.stop()
-                                            } else {
-                                                controller.triangularArbitrage.start()
-                                            }
-                                        }
-                                   }
-                               }
-
-                               RowLayout {
-                                   Layout.fillWidth: true
-                                   spacing: 24
-
-                                   Label {
-                                       text: qsTr("Forward") + " (USDT\u2192BTC\u2192ETH\u2192USDT): " +
-                                            controller.triangularArbitrage.forwardProfitPercent.toFixed(3) + "%"
-                                        font.pixelSize: 12
-                                        font.bold: true
-                                        color: controller.triangularArbitrage.forwardProfitPercent > controller.triangularArbitrage.feePercent
-                                            ? "#4caf50" : "#8a8a8a"
-                                   }
-
-                                   Label {
-                                       text: qsTr("Reverse") + " (USDT\u2192ETH\u2192BTC\u2192USDT): " +
-                                            controller.triangularArbitrage.reverseProfitPercent.toFixed(3) + "%"
-                                        font.pixelSize: 12
-                                        font.bold: true
-                                        color: controller.triangularArbitrage.reverseProfitPercent > controller.triangularArbitrage.feePercent
-                                            ? "#4caf50" : "#8a8a8a"
-                                   }
-
-                                   Item { Layout.fillWidth: true }
-
-                                   Label {
-                                       text: qsTr("Update") + ": " + (controller.triangularArbitrage.lastUpdateTime || "--")
-                                       font.pixelSize: 11
-                                       color: "#666666"
-                                   }
-                               }
-
-                               RowLayout {
-                                   Layout.fillWidth: true
-                                   spacing: 20
-
-                                   Label {
-                                        text: "BTCUSDT " + controller.triangularArbitrage.bidA.toFixed(2) + " / " + controller.triangularArbitrage.askA.toFixed(2)
-                                        font.pixelSize: 10
-                                        font.family: "Consolas"
-                                        color: "#8a8a8a"
-                                   }
-                                   Label {
-                                        text: "ETHUSDT " + controller.triangularArbitrage.bidB.toFixed(2) + " / " + controller.triangularArbitrage.askB.toFixed(2)
-                                        font.pixelSize: 10
-                                        font.family: "Consolas"
-                                        color: "#8a8a8a"
-                                   }
-                                   Label {
-                                        text: "ETHBTC " + controller.triangularArbitrage.bidC.toFixed(6) + " / " + controller.triangularArbitrage.askC.toFixed(6)
-                                        font.pixelSize: 10
-                                        font.family: "Consolas"
-                                        color: "#8a8a8a"
-                                   }
-                               }
-                           }
-
                        }
 
                        // ТАБЛИЦА ДАННЫХ(своя для погоды и своя дл биржи,

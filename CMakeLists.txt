@@ -35,10 +35,17 @@ qt_add_executable(DataMonitorPro
     src/export/ReportExporter.h
     src/export/ReportExporter.cpp
     src/core/SecretManager.h
-    src/network/ExchangeClient.cpp
-    src/network/ExchangeClient.h
+    src/network/IExchangeAdapter.h
+    src/network/ExchangeManager.cpp
+    src/network/ExchangeManager.h
+    src/network/Binanceexchangeclient.cpp
+    src/network/Binanceexchangeclient.h
+    src/network/BybitExchangeClient.cpp
+    src/network/BybitExchangeClient.h
     src/network/TriangularArbitrageMonitor.cpp
     src/network/TriangularArbitrageMonitor.h
+    src/network/Bybittriangulararbitragemonitor.h
+    src/network/Bybittriangulararbitragemonitor.cpp
     src/models/CandleData.h
     src/models/CandleModel.cpp
     src/models/CandleModel.h
@@ -77,13 +84,19 @@ qt_add_qml_module(DataMonitorPro
     QML_FILES
         qml/main.qml
         qml/DataTableView.qml
+        qml/TriangularArbitragePanel.qml
     DEPENDENCIES
         QtCharts
         SOURCES src/core/LanguageManager.h
         SOURCES src/core/LanguageManager.h
         SOURCES src/core/LanguageManager.cpp src/core/LanguageManager.h
-        SOURCES src/network/ExchangeClient.h
-        SOURCES src/network/ExchangeClient.cpp
+        SOURCES src/network/IExchangeAdapter.h
+        SOURCES src/network/ExchangeManager.h
+        SOURCES src/network/ExchangeManager.cpp
+        SOURCES src/network/Binanceexchangeclient.h
+        SOURCES src/network/Binanceexchangeclient.cpp
+        SOURCES src/network/BybitExchangeClient.h
+        SOURCES src/network/BybitExchangeClient.cpp
         SOURCES src/models/CandleData.h
         SOURCES src/models/CandleModel.h
         SOURCES src/models/CandleModel.cpp
@@ -91,6 +104,9 @@ qt_add_qml_module(DataMonitorPro
         SOURCES src/chart/TradingChartManager.cpp
         SOURCES src/network/TriangularArbitrageMonitor.h
         SOURCES src/network/TriangularArbitrageMonitor.cpp
+        SOURCES src/network/Bybittriangulararbitragemonitor.h
+        SOURCES src/network/Bybittriangulararbitragemonitor.cpp
+        #QML_FILES qml/Triangulararbitragepanel.qml
         #QML_FILES qml/DataTableView.qml
 
 )
